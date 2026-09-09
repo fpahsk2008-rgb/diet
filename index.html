@@ -41,6 +41,49 @@
   header h1{ font-size:22px; margin:0 0 2px; font-weight:800; letter-spacing:-0.02em; }
   header .date{ color:var(--muted); font-size:13px; }
 
+  /* ---------- 실행 취소 토스트 ---------- */
+  .toast{
+    position:fixed; left:12px; right:12px; z-index:60;
+    bottom:calc(74px + env(safe-area-inset-bottom));
+    max-width:456px; margin:0 auto;
+    display:flex; align-items:center; gap:10px;
+    background:#2a2b35; border:1px solid var(--border); border-radius:11px;
+    padding:11px 12px; box-shadow:0 6px 22px rgba(0,0,0,.5);
+    font-size:13px; animation:toastIn .16s ease-out;
+  }
+  .toast-msg{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .toast-act{
+    flex:none; background:transparent; color:var(--accent);
+    font-size:13px; font-weight:800; padding:4px 6px; font-family:inherit;
+  }
+  @keyframes toastIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+
+  /* ---------- 끼니별 그룹 ---------- */
+  .meal-group{ margin-bottom:6px; }
+  .meal-group:last-child{ margin-bottom:0; }
+  .mg-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:9px 0 5px; border-bottom:1px solid var(--border); margin-bottom:2px;
+  }
+  .mg-name{ font-size:12.5px; font-weight:800; }
+  .mg-sum{ font-size:11.5px; color:var(--muted); font-family:ui-monospace, monospace; }
+  .mg-sum b{ color:var(--text); }
+
+  /* ---------- 주간 뱅킹 ---------- */
+  .bank{ background:var(--surface-2); border-radius:11px; padding:12px 13px; margin-bottom:12px; }
+  .bank-top{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px; }
+  .bank-val{ font-size:20px; font-weight:800; font-family:ui-monospace, monospace; }
+  .bank-note{ font-size:11.5px; color:var(--muted); line-height:1.55; }
+  .bank-note b{ color:var(--text); }
+
+  /* ---------- Top 음식 ---------- */
+  .top-row{ display:flex; align-items:center; gap:10px; padding:7px 0; }
+  .top-rank{ flex:none; width:19px; font-size:12px; font-weight:800; color:var(--muted); font-family:ui-monospace, monospace; }
+  .top-body{ flex:1; min-width:0; }
+  .top-name{ font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .top-bar{ height:4px; border-radius:2px; background:var(--accent); margin-top:4px; }
+  .top-cnt{ flex:none; font-size:11.5px; color:var(--muted); font-family:ui-monospace, monospace; }
+
   /* ---------- 하단 고정 네비 ---------- */
   .bottom-nav{
     position:fixed; left:0; right:0; bottom:0; z-index:50;
@@ -441,7 +484,7 @@
       <div class="card-body">
         <div class="weight-row">
           <div>
-            <input type="number" id="weightInput" placeholder="예: 84.5" step="0.1">
+            <input type="number" inputmode="decimal" id="weightInput" placeholder="예: 84.5" step="0.1">
           </div>
           <div class="qty-box">
             <button class="btn-add" style="margin-top:0;" id="saveWeightBtn">저장</button>
@@ -487,7 +530,7 @@
       <div class="row">
         <select id="comboBuildSelect"></select>
         <div class="qty-box">
-          <input type="number" id="comboBuildQty" value="1" min="0.5" step="0.5">
+          <input type="number" inputmode="decimal" id="comboBuildQty" value="1" min="0.5" step="0.5">
         </div>
       </div>
       <button class="btn-add btn-secondary" id="addToDraftBtn">세트에 담기</button>
@@ -569,14 +612,14 @@
           <div class="full"><label>이름</label><input type="text" id="cName" placeholder="예: 회사 구내식당 점심"></div>
           <div class="full" id="cGramWrap" style="display:none;">
             <label>실제 먹은 양 (g)</label>
-            <input type="number" id="cGram" placeholder="예: 150" min="1" step="10">
+            <input type="number" inputmode="decimal" id="cGram" placeholder="예: 150" min="1" step="10">
           </div>
-          <div><label>칼로리 (kcal)</label><input type="number" id="cKcal" value="0"></div>
-          <div><label>단백질 (g)</label><input type="number" id="cProtein" value="0"></div>
-          <div><label>탄수화물 (g)</label><input type="number" id="cCarb" value="0"></div>
-          <div><label>지방 (g)</label><input type="number" id="cFat" value="0"></div>
-          <div><label>당류 (g)</label><input type="number" id="cSugar" value="0"></div>
-          <div><label>나트륨 (mg)</label><input type="number" id="cSodium" value="0"></div>
+          <div><label>칼로리 (kcal)</label><input type="number" inputmode="decimal" id="cKcal" value="0"></div>
+          <div><label>단백질 (g)</label><input type="number" inputmode="decimal" id="cProtein" value="0"></div>
+          <div><label>탄수화물 (g)</label><input type="number" inputmode="decimal" id="cCarb" value="0"></div>
+          <div><label>지방 (g)</label><input type="number" inputmode="decimal" id="cFat" value="0"></div>
+          <div><label>당류 (g)</label><input type="number" inputmode="decimal" id="cSugar" value="0"></div>
+          <div><label>나트륨 (mg)</label><input type="number" inputmode="decimal" id="cSodium" value="0"></div>
         </div>
         <p class="preset-macro" id="cCalcPreview" style="display:none;"></p>
         <label class="inline-check">
@@ -624,7 +667,7 @@
             <option value="기타">기타</option>
           </select>
           <div class="qty-box">
-            <input type="number" id="woMin" placeholder="분" min="1" step="5">
+            <input type="number" inputmode="decimal" id="woMin" placeholder="분" min="1" step="5">
           </div>
         </div>
         <input type="text" id="woMemo" placeholder="메모 (예: 하체, 벤치 60kg 5x5)" style="margin-top:8px;">
@@ -638,21 +681,21 @@
       <button class="card-head"><span class="head-title">목표치 수정</span><span class="chev">▾</span></button>
       <div class="card-body">
         <div class="custom-grid">
-          <div><label>목표 칼로리</label><input type="number" id="tKcal"></div>
-          <div><label>목표 단백질(g)</label><input type="number" id="tProtein"></div>
-          <div><label>목표 탄수화물(g)</label><input type="number" id="tCarb"></div>
-          <div><label>목표 지방(g)</label><input type="number" id="tFat"></div>
-          <div><label>당류 상한선(g)</label><input type="number" id="tSugar"></div>
-          <div><label>나트륨 상한선(mg)</label><input type="number" id="tSodium"></div>
+          <div><label>목표 칼로리</label><input type="number" inputmode="decimal" id="tKcal"></div>
+          <div><label>목표 단백질(g)</label><input type="number" inputmode="decimal" id="tProtein"></div>
+          <div><label>목표 탄수화물(g)</label><input type="number" inputmode="decimal" id="tCarb"></div>
+          <div><label>목표 지방(g)</label><input type="number" inputmode="decimal" id="tFat"></div>
+          <div><label>당류 상한선(g)</label><input type="number" inputmode="decimal" id="tSugar"></div>
+          <div><label>나트륨 상한선(mg)</label><input type="number" inputmode="decimal" id="tSodium"></div>
         </div>
         <button class="btn-add" id="saveTargetsBtn">목표치 저장</button>
 
         <button class="toggle-btn" id="calcToggle" style="width:100%; margin-top:14px;">목표 자동 계산기 (TDEE 기반)</button>
         <div class="collapsible" id="calcPanel">
           <div class="custom-grid">
-            <div><label>체중(kg)</label><input type="number" id="bsWeight" value="85"></div>
-            <div><label>키(cm)</label><input type="number" id="bsHeight" value="183"></div>
-            <div><label>나이</label><input type="number" id="bsAge" value="30"></div>
+            <div><label>체중(kg)</label><input type="number" inputmode="decimal" id="bsWeight" value="85"></div>
+            <div><label>키(cm)</label><input type="number" inputmode="decimal" id="bsHeight" value="183"></div>
+            <div><label>나이</label><input type="number" inputmode="decimal" id="bsAge" value="30"></div>
             <div>
               <label>성별</label>
               <select id="bsGender"><option value="male">남성</option><option value="female">여성</option></select>
@@ -675,7 +718,7 @@
                 <option value="bulk">근육 증가 (+10%)</option>
               </select>
             </div>
-            <div><label>목표 체중(kg)</label><input type="number" id="bsGoalWeight" value="81"></div>
+            <div><label>목표 체중(kg)</label><input type="number" inputmode="decimal" id="bsGoalWeight" value="81"></div>
           </div>
           <button class="btn-add" id="calcApplyBtn">계산해서 목표치 채우기</button>
           <p class="preset-macro" id="calcResult"></p>
@@ -688,11 +731,11 @@
       <div class="card-body">
         <p class="preset-macro" style="margin-top:0;">하루 목표 칼로리를 끼니별로 나눠요. "끼니별 칼로리 분포" 카드에 목표 대비로 표시됩니다.</p>
         <div class="split-grid">
-          <div><label>아침 (%)</label><input type="number" id="sp아침" min="0" max="100"></div>
-          <div><label>점심 (%)</label><input type="number" id="sp점심" min="0" max="100"></div>
-          <div><label>간식 (%)</label><input type="number" id="sp간식" min="0" max="100"></div>
-          <div><label>저녁 (%)</label><input type="number" id="sp저녁" min="0" max="100"></div>
-          <div><label>야식 (%)</label><input type="number" id="sp야식" min="0" max="100"></div>
+          <div><label>아침 (%)</label><input type="number" inputmode="decimal" id="sp아침" min="0" max="100"></div>
+          <div><label>점심 (%)</label><input type="number" inputmode="decimal" id="sp점심" min="0" max="100"></div>
+          <div><label>간식 (%)</label><input type="number" inputmode="decimal" id="sp간식" min="0" max="100"></div>
+          <div><label>저녁 (%)</label><input type="number" inputmode="decimal" id="sp저녁" min="0" max="100"></div>
+          <div><label>야식 (%)</label><input type="number" inputmode="decimal" id="sp야식" min="0" max="100"></div>
         </div>
         <p class="split-sum" id="splitSum"></p>
         <div class="btn-row">
@@ -707,8 +750,8 @@
       <button class="card-head"><span class="head-title">물 목표 설정</span><span class="head-sub" id="waterCfgHeadSub"></span><span class="chev">▾</span></button>
       <div class="card-body">
         <div class="custom-grid">
-          <div><label>한 컵 용량 (ml)</label><input type="number" id="wcMl" min="50" step="10"></div>
-          <div><label>하루 목표 (컵)</label><input type="number" id="wcCups" min="1" max="30"></div>
+          <div><label>한 컵 용량 (ml)</label><input type="number" inputmode="decimal" id="wcMl" min="50" step="10"></div>
+          <div><label>하루 목표 (컵)</label><input type="number" inputmode="decimal" id="wcCups" min="1" max="30"></div>
         </div>
         <p class="preset-macro" id="wcPreview"></p>
         <button class="btn-add" id="saveWaterCfgBtn">물 목표 저장</button>
@@ -722,6 +765,7 @@
         <p class="preset-macro">전체 기록(끼니, 체중, 목표치, 즐겨찾기)을 텍스트로 내보내거나, 백업해둔 텍스트를 붙여넣어 복원할 수 있어요.</p>
         <div class="btn-row">
           <button class="btn-add" id="downloadBtn">파일로 내려받기 (.json)</button>
+          <button class="btn-add btn-secondary" id="csvBtn">엑셀용 (.csv)</button>
         </div>
         <p class="save-status" id="lastBackupStatus"></p>
         <div class="btn-row">
@@ -763,6 +807,13 @@
         <div id="weightChartWrap"><div class="loading">불러오는 중...</div></div>
       </div>
     </div>
+    <div class="card fold collapsed" data-fold="topfoods">
+      <button class="card-head"><span class="head-title">이번 달 많이 먹은 것</span><span class="head-sub" id="topHeadSub"></span><span class="chev">▾</span></button>
+      <div class="card-body">
+        <div id="topFoods"><div class="loading">불러오는 중...</div></div>
+      </div>
+    </div>
+
     <div class="card fold" data-fold="history">
       <button class="card-head"><span class="head-title">월별 기록</span><span class="chev">▾</span></button>
       <div class="card-body">
@@ -1052,6 +1103,55 @@
   const ESC_MAP = { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" };
   const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (ch)=> ESC_MAP[ch]);
 
+  /* ---------- 토스트 + 실행 취소 ---------- */
+  let toastTimer = null;
+
+  function showToast(msg, actionLabel, onAction, ms){
+    const old = document.getElementById("toast");
+    if (old) old.remove();
+    if (toastTimer) clearTimeout(toastTimer);
+
+    const box = document.createElement("div");
+    box.className = "toast";
+    box.id = "toast";
+    box.setAttribute("role", "status");
+
+    const span = document.createElement("span");
+    span.className = "toast-msg";
+    span.textContent = msg;
+    box.appendChild(span);
+
+    if (actionLabel && onAction){
+      const btn = document.createElement("button");
+      btn.className = "toast-act";
+      btn.textContent = actionLabel;
+      btn.addEventListener("click", ()=>{
+        box.remove();
+        if (toastTimer) clearTimeout(toastTimer);
+        onAction();
+      });
+      box.appendChild(btn);
+    }
+    document.body.appendChild(box);
+    toastTimer = setTimeout(()=>{ box.remove(); }, ms || 5000);
+  }
+
+  /* 한 동작 전체를 되돌릴 수 있게 감싸기. 중첩되면 바깥 것만 유효 */
+  let undoDepth = 0;
+
+  function withUndo(label, fn){
+    if (undoDepth > 0){ fn(); return; }
+    const prev = JSON.parse(JSON.stringify(entries));
+    undoDepth++;
+    try{ fn(); } finally{ undoDepth--; }
+    showToast(label, "되돌리기", async ()=>{
+      entries = prev;
+      renderToday();
+      await saveEntries();
+      refreshWeekAvg();
+    });
+  }
+
   /* ---------- 진동 피드백 ---------- */
   function buzz(ms){
     try{ if (navigator.vibrate) navigator.vibrate(ms || 15); }catch(err){}
@@ -1232,14 +1332,14 @@
     remainEl.style.color = remain < 0 ? "var(--over)" : "var(--text)";
   }
 
-  function entryRowHtml(e, mode){
+  function entryRowHtml(e, mode, hideMealTag){
     const btns = mode === "today"
       ? `<div class="btns"><button class="icon-btn edit" data-id="${e.id}" title="수정" aria-label="${esc(e.name)} 수정">✎</button><button class="icon-btn del" data-id="${e.id}" title="삭제" aria-label="${esc(e.name)} 삭제">×</button></div>`
       : "";
     return `
       <div class="entry">
         <div>
-          <div class="name">${e.meal ? `<span class="tag">${esc(e.meal)}</span>`:""}${esc(e.name)}</div>
+          <div class="name">${(e.meal && !hideMealTag) ? `<span class="tag">${esc(e.meal)}</span>`:""}${esc(e.name)}</div>
           <div class="meta num">P ${fmt(e.p)} · C ${fmt(e.c)} · F ${fmt(e.f)} · 당 ${fmt(e.s||0)} · Na ${fmt(e.n||0)}mg</div>
         </div>
         <div class="right"><div class="kcal num">${fmt(e.kcal)}kcal</div></div>
@@ -1259,13 +1359,41 @@
 
     const list = $("logList");
     if (entries.length === 0){
-      list.innerHTML = `<div class="empty">아직 기록이 없어요. 위에서 음식을 추가해보세요.</div>`;
+      list.innerHTML = `<div class="empty">아직 기록이 없어요. "추가" 탭에서 음식을 담아보세요.</div>`;
     } else {
-      list.innerHTML = entries.slice().reverse().map(e=>entryRowHtml(e, "today")).join("");
+      list.innerHTML = groupedLogHtml();
       list.querySelectorAll(".del").forEach(btn=> btn.addEventListener("click", ()=> removeEntry(btn.dataset.id)));
       list.querySelectorAll(".edit").forEach(btn=> btn.addEventListener("click", ()=> startEdit(btn.dataset.id)));
     }
     renderHeadSubs();
+  }
+
+  /* 기록 목록을 끼니별로 묶어서 소계와 함께 */
+  function groupedLogHtml(){
+    const groups = {};
+    entries.forEach(e=>{
+      const m = e.meal || "기타";
+      (groups[m] = groups[m] || []).push(e);
+    });
+    const order = MEAL_ORDER.concat(["기타"]).filter(m=> groups[m]);
+    return order.map(m=>{
+      const list = groups[m];
+      const sum = list.reduce((s,e)=> s + e.kcal, 0);
+      const sumP = list.reduce((s,e)=> s + (e.p||0), 0);
+      const tgt = m === "기타" ? 0 : mealTargetOf(m);
+      const over = tgt > 0 && sum > tgt;
+      const right = tgt > 0
+        ? `<b style="color:${over ? "var(--over)" : "var(--text)"};">${fmt(sum)}</b> / ${tgt}kcal · P ${fmt(sumP)}g`
+        : `<b>${fmt(sum)}kcal</b> · P ${fmt(sumP)}g`;
+      const rows = list.slice().reverse().map(e=> entryRowHtml(e, "today", true)).join("");
+      return `<div class="meal-group">
+        <div class="mg-head">
+          <span class="mg-name" style="color:${MEAL_COLORS[m] || "var(--muted)"};">${m}</span>
+          <span class="mg-sum num">${right}</span>
+        </div>
+        ${rows}
+      </div>`;
+    }).join("");
   }
 
   const MEAL_ORDER = ["아침","점심","간식","저녁","야식"];
@@ -1802,7 +1930,9 @@
       btn.textContent = "담기";
       btn.setAttribute("aria-label", "이 조합을 오늘 기록에 추가");
       btn.addEventListener("click", ()=>{
-        c.items.forEach(x=> quickAdd(x, 1));
+        withUndo(`추천 ${c.items.length}개 담음`, ()=>{
+          c.items.forEach(x=> quickAdd(x, 1));
+        });
         recOpen = false;          // 담고 나면 목록은 다시 접기
         renderBudgetBar();
       });
@@ -2077,10 +2207,13 @@
   }
 
   function removeEntry(id){
-    entries = entries.filter(e=> e.id !== id);
-    renderToday();
-    saveEntries();
-    refreshWeekAvg();
+    const target = entries.find(e=> e.id === id);
+    withUndo(`"${target ? target.name : "항목"}" 삭제함`, ()=>{
+      entries = entries.filter(e=> e.id !== id);
+      renderToday();
+      saveEntries();
+      refreshWeekAvg();
+    });
   }
 
   function startEdit(id){
@@ -2411,6 +2544,10 @@
   }
 
   function quickAdd(p, qty){
+    if (undoDepth === 0){
+      withUndo(`${p.name} 추가함`, ()=> quickAdd(p, qty));
+      return;
+    }
     buzz();
     bumpUse(p);
     const entry = mergeOrAdd(p.name, qty, p);
@@ -2422,6 +2559,10 @@
   }
 
   function quickAddGram(p, grams){
+    if (undoDepth === 0){
+      withUndo(`${p.name} ${grams}g 추가함`, ()=> quickAddGram(p, grams));
+      return;
+    }
     buzz();
     const g = unitGrams(p);
     const m = grams / g;
@@ -2593,6 +2734,10 @@
   }
 
   function addCombo(combo){
+    if (undoDepth === 0){
+      withUndo(`"${combo.name}" 세트 추가함`, ()=> addCombo(combo));
+      return;
+    }
     buzz(25);
     combo.items.forEach(it=>{
       const p = allPresets().find(x=> x.name===it.name && x.unit===it.unit);
@@ -2695,15 +2840,56 @@
     return out.reverse();
   }
 
+  /* 이번 주(월~오늘) 누적 여유분 — 하루 넘겨도 주 단위로 보정 */
+  function weekBankHtml(data){
+    const dow = todayDate.getDay();              // 0=일
+    const sinceMon = (dow + 6) % 7;              // 월요일부터 며칠째인지
+    const monKey = toKey(new Date(todayDate.getTime() - sinceMon * 86400000));
+    const week = data.filter(d=> d.date >= monKey && d.date <= TODAY_KEY);
+    if (week.length === 0) return "";
+
+    const elapsed = week.length;                       // 오늘 포함 지난 일수
+    const logged = week.filter(d=> d.totals);          // 실제로 기록한 날만
+    if (logged.length === 0) return "";
+
+    const remainDays = 7 - elapsed;
+    const eaten = logged.reduce((s,d)=> s + d.totals.kcal, 0);
+    const bank = targets.kcal * logged.length - eaten; // +면 여유, -면 초과
+    const complete = logged.length === elapsed;        // 빠진 날 없이 다 기록했는지
+
+    let note;
+    if (!complete){
+      note = `기록한 <b>${logged.length}일</b>만 계산했어요. ${elapsed - logged.length}일이 비어 있어서 주간 배분은 안 보여드립니다.`;
+    } else if (remainDays > 0){
+      const raw = (targets.kcal * 7 - eaten) / remainDays;
+      const cap = targets.kcal * 1.2;                  // 몰아 먹기를 부추기지 않도록 상한
+      const perDay = Math.round(Math.min(raw, cap));
+      note = `남은 ${remainDays}일을 하루 <b>${perDay.toLocaleString()}kcal</b> 정도로 잡으면 주간 목표에 맞아요.`
+           + (raw > cap ? " (여유분이 커서 하루 목표의 1.2배로 제한했어요.)" : "");
+    } else {
+      note = bank >= 0 ? "이번 주는 목표 안에서 마무리했어요." : "이번 주는 목표를 넘겼어요. 다음 주에 다시 시작하면 됩니다.";
+    }
+
+    const pos = bank >= 0;
+    return `<div class="bank">
+      <div class="bank-top">
+        <span class="bb-lab">이번 주 누적 (기록 ${logged.length}일)</span>
+        <span class="bank-val" style="color:${pos ? "var(--good)" : "var(--over)"};">${pos ? "-" : "+"}${Math.abs(Math.round(bank)).toLocaleString()}<span style="font-size:12px; color:var(--muted); font-weight:600;"> kcal</span></span>
+      </div>
+      <p class="bank-note">기록한 날 목표 대비 ${pos ? "덜 먹은" : "더 먹은"} 누적량이에요. ${note}</p>
+    </div>`;
+  }
+
   /* ---------- 주간 리포트 ---------- */
   async function loadWeekly(){
     const wrap = $("weeklyWrap");
     const data = await loadRange(28);
     const last7 = data.slice(-7);
     const logged7 = last7.filter(d=> d.totals);
+    const bankHtml = weekBankHtml(data);
 
     if (logged7.length < 2){
-      wrap.innerHTML = `<div class="empty">기록이 2일 이상 쌓이면 리포트가 나와요.<br>지금 ${logged7.length}일치 있어요.</div>`;
+      wrap.innerHTML = bankHtml + `<div class="empty">기록이 2일 이상 쌓이면 자세한 리포트가 나와요.<br>지금 ${logged7.length}일치 있어요.</div>`;
       $("weeklyHeadSub").textContent = "";
       return;
     }
@@ -2724,7 +2910,7 @@
     const kcalCls = avgKcal > targets.kcal * 1.05 ? "over" : (avgKcal < targets.kcal * 0.75 ? "warn" : "good");
     const pCls = gPerKg >= 1.6 ? "good" : (gPerKg >= 1.2 ? "warn" : "over");
 
-    wrap.innerHTML = `
+    wrap.innerHTML = bankHtml + `
       <div class="stat-grid">
         <div class="stat-box ${kcalCls}">
           <div class="sb-label">7일 평균 칼로리</div>
@@ -2945,10 +3131,65 @@
     $("tdeeHeadSub").textContent = `${Math.round(actualTdee)}kcal`;
   }
 
+  /* 이번 달에 가장 자주 담은 음식 */
+  async function loadTopFoods(){
+    const wrap = $("topFoods");
+    if (!wrap) return;
+    const monthPrefix = TODAY_KEY.slice(0, 7);   // YYYY-MM
+    let keys = [];
+    try{
+      const res = await store.list(ENTRIES_PREFIX, false);
+      keys = ((res && res.keys) || []).filter(k=> k.replace(ENTRIES_PREFIX, "").startsWith(monthPrefix));
+    }catch(err){
+      wrap.innerHTML = `<div class="empty">불러오지 못했어요.</div>`;
+      return;
+    }
+
+    const tally = {};
+    let days = 0;
+    for (const key of keys){
+      try{
+        const r = await store.get(key, false);
+        const list = r && r.value ? JSON.parse(r.value) : [];
+        if (!list.length) continue;
+        days++;
+        list.forEach(e=>{
+          const t = tally[e.name] || (tally[e.name] = { name:e.name, cnt:0, kcal:0 });
+          t.cnt++;
+          t.kcal += e.kcal || 0;
+        });
+      }catch(err){}
+    }
+
+    const top = Object.values(tally).sort((a,b)=> b.cnt - a.cnt || b.kcal - a.kcal).slice(0, 5);
+    if (top.length === 0){
+      wrap.innerHTML = `<div class="empty">이번 달 기록이 아직 없어요.</div>`;
+      $("topHeadSub").textContent = "";
+      return;
+    }
+
+    const max = top[0].cnt;
+    const totalKcal = Object.values(tally).reduce((s,t)=> s + t.kcal, 0);
+    wrap.innerHTML =
+      `<p class="analysis-note" style="margin:0 0 6px;">${monthPrefix.replace("-","년 ")}월 · 기록한 날 ${days}일</p>` +
+      top.map((t, i)=>`
+        <div class="top-row">
+          <span class="top-rank">${i+1}</span>
+          <div class="top-body">
+            <div class="top-name">${esc(t.name)}</div>
+            <div class="top-bar" style="width:${Math.max(6, (t.cnt / max) * 100)}%; opacity:${1 - i*0.14};"></div>
+          </div>
+          <span class="top-cnt">${t.cnt}회 · ${fmt(t.kcal)}kcal</span>
+        </div>`).join("") +
+      `<p class="analysis-note" style="margin-top:8px;">상위 5개가 이번 달 섭취 칼로리의 <b style="color:var(--text);">${totalKcal ? Math.round(top.reduce((s,t)=>s+t.kcal,0) / totalKcal * 100) : 0}%</b>를 차지해요.</p>`;
+    $("topHeadSub").textContent = `${top[0].name.slice(0,10)} ${top[0].cnt}회`;
+  }
+
   async function loadHistory(){
     await loadWeekly();
     await loadTdee();
     await loadWeightChart();
+    await loadTopFoods();
 
     const container = $("historyList");
     container.innerHTML = `<div class="loading">불러오는 중...</div>`;
@@ -3215,6 +3456,50 @@
   }
 
   // ---------- BACKUP / RESTORE ----------
+  /* 엑셀에서 바로 열 수 있는 CSV */
+  function csvCell(v){
+    const s = String(v == null ? "" : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  async function exportCsv(){
+    const status = $("backupStatus");
+    status.textContent = "CSV 만드는 중...";
+    try{
+      const data = await collectAllData();
+      const rows = [["날짜","요일","끼니","음식","칼로리","단백질(g)","탄수화물(g)","지방(g)","당류(g)","나트륨(mg)","체중(kg)","물(ml)"]];
+      const DOW = ["일","월","화","수","목","금","토"];
+      const dates = Object.keys(data.entries).sort();
+      dates.forEach(date=>{
+        const dow = DOW[new Date(date + "T00:00:00").getDay()];
+        const kg = data.weights[date] != null ? data.weights[date] : "";
+        const ml = data.water[date] != null ? data.water[date] * WATER_CUP_ML : "";
+        (data.entries[date] || []).forEach((e, i)=>{
+          rows.push([
+            date, dow, e.meal || "", e.name,
+            e.kcal || 0, e.p || 0, e.c || 0, e.f || 0, e.s || 0, e.n || 0,
+            i === 0 ? kg : "", i === 0 ? ml : ""
+          ]);
+        });
+      });
+
+      // 엑셀이 한글을 깨뜨리지 않도록 BOM 추가
+      const csv = "\uFEFF" + rows.map(r=> r.map(csvCell).join(",")).join("\r\n");
+      const blob = new Blob([csv], { type:"text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `식단기록_${TODAY_KEY}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=> URL.revokeObjectURL(url), 1000);
+      status.textContent = `CSV 저장 완료 (${rows.length - 1}줄, ${dates.length}일치)`;
+    }catch(err){
+      status.textContent = "CSV 만들기에 실패했어요.";
+    }
+  }
+
   async function exportAllData(){
     const status = $("backupStatus");
     status.textContent = "내보내는 중...";
@@ -3645,6 +3930,7 @@
       renderWater();
     });
 
+    $("csvBtn").addEventListener("click", exportCsv);
     $("exportBtn").addEventListener("click", exportAllData);
     $("copyExportBtn").addEventListener("click", ()=>{
       const area = $("exportArea");
