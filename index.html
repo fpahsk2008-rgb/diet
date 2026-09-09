@@ -923,6 +923,20 @@
     // 채소
     { group:"채소", name:"양배추(생/찜)", unit:"100g", kcal:25, p:1.3, c:5.8, f:0.1, s:3.2, n:18 },
     { group:"채소", name:"양배추(생/찜)", unit:"150g", kcal:38, p:2, c:8.7, f:0.2, s:4.8, n:27 },
+    { group:"채소", name:"대파", unit:"한줌(25g)", kcal:8, p:0.4, c:1.6, f:0, s:0.6, n:1, est:true },
+    { group:"채소", name:"대파", unit:"1대(100g)", kcal:30, p:1.5, c:6.5, f:0.2, s:2.3, n:5, est:true },
+    { group:"채소", name:"쪽파·실파", unit:"한줌(20g)", kcal:6, p:0.4, c:1.2, f:0, s:0.4, n:1, est:true },
+
+    /* 양념·기름 — 조리하면서 들어가는 것들. 기름은 눈에 안 보여도 칼로리가 큰 편이라 따로 기록하는 게 좋아요.
+       계량 기준: 1작은술 = 5ml, 1큰술 = 15ml, 냉동 다진마늘 큐브 1개 ≈ 5g */
+    { group:"양념·기름", name:"올리브유", unit:"1작은술(5ml)", kcal:40, p:0, c:0, f:4.5, s:0, n:0 },
+    { group:"양념·기름", name:"올리브유", unit:"1큰술(15ml)", kcal:120, p:0, c:0, f:13.5, s:0, n:0 },
+    { group:"양념·기름", name:"올리브유", unit:"팬에 한 바퀴(약 10ml)", kcal:80, p:0, c:0, f:9, s:0, n:0, est:true },
+    { group:"양념·기름", name:"참기름", unit:"1작은술(5ml)", kcal:45, p:0, c:0, f:5, s:0, n:0 },
+    { group:"양념·기름", name:"참기름", unit:"1큰술(15ml)", kcal:130, p:0, c:0, f:14.5, s:0, n:0 },
+    { group:"양념·기름", name:"다진마늘(냉동 큐브)", unit:"작은 것 1개(5g)", kcal:7, p:0.3, c:1.5, f:0, s:0.1, n:1, est:true },
+    { group:"양념·기름", name:"다진마늘(냉동 큐브)", unit:"작은 것 2개(10g)", kcal:14, p:0.6, c:3, f:0, s:0.2, n:2, est:true },
+    { group:"양념·기름", name:"다진마늘", unit:"1큰술(15g)", kcal:20, p:0.9, c:4.5, f:0.1, s:0.2, n:2, est:true },
 
     // 구이류 (가끔)
     { group:"구이류(가끔)", name:"우삼겹 구이", unit:"100g", kcal:330, p:19, c:0, f:27.5, s:0, n:60 },
@@ -2317,7 +2331,7 @@
     { id:"deliv",  label:"🍕 배달", groups:["배달·패스트푸드"] },
     { id:"snack",  label:"🍪 간식", groups:["간식","CU 간편식"] },
     { id:"drink",  label:"☕ 음료·술", groups:["음료·주류"] },
-    { id:"veg",    label:"🥬 채소·소스", groups:["채소","소스(저당·디핑)","구이류(가끔)"] },
+    { id:"veg",    label:"🥬 채소·소스", groups:["채소","양념·기름","소스(저당·디핑)","구이류(가끔)"] },
     { id:"mine",   label:"✏️ 내 음식", groups:["내가 등록한 음식"] },
   ];
 
