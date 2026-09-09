@@ -1,7 +1,7 @@
 /* 식단 계산기 서비스워커
    앱 파일을 고치고 다시 올릴 때는 아래 CACHE 뒤 숫자를 v2, v3... 으로 올려주세요.
    그래야 폰이 새 버전을 받아옵니다. */
-const CACHE = "diet-v4";
+const CACHE = "diet-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,10 +13,14 @@ const ASSETS = [
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE)
-      .then((c) => c.addAll(ASSETS))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE).then((c) => c.addAll(ASSETS))
   );
+  // 바로 갈아끼우지 않고 대기 → 앱이 "새 버전 있어요" 배너를 띄우고,
+  // 사용자가 누르면 아래 message 핸들러가 교체합니다.
+});
+
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {

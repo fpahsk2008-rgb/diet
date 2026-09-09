@@ -13,5 +13,28 @@
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "물 한 컵 추가",
+      "short_name": "물 +1",
+      "description": "물 250ml를 바로 기록해요",
+      "url": "./index.html?a=water",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "음식 추가",
+      "short_name": "음식 추가",
+      "description": "검색창을 열고 바로 입력해요",
+      "url": "./index.html?a=add",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "체중 입력",
+      "short_name": "체중",
+      "description": "오늘 체중을 기록해요",
+      "url": "./index.html?a=weight",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ]
 }

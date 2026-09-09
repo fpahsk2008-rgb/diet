@@ -427,7 +427,7 @@
       <div class="chip-row" id="comboRow"></div>
 
       <p class="section-title" style="margin-top:14px;">나만의 세트 만들기</p>
-      <input type="text" id="comboSearch" placeholder="검색 (예: 닭가슴살, 케첩...)" style="margin-bottom:8px;">
+      <input type="text" id="comboSearch" placeholder="검색 (초성 가능 · 예: \u3137\u3131\u3145\u3145)" style="margin-bottom:8px;">
       <div class="row">
         <select id="comboBuildSelect"></select>
         <div class="qty-box">
@@ -491,7 +491,7 @@
       </div>
 
       <div id="presetPane" style="margin-top:14px;">
-        <input type="text" id="presetSearch" placeholder="검색 (예: 닭가슴살, 김밥, 치킨...)" style="margin-bottom:8px;">
+        <input type="text" id="presetSearch" placeholder="검색 (초성 가능 · 예: \u3137\u3131\u3145\u3145, 김밥)" style="margin-bottom:8px;">
         <div class="cat-row" id="catRow"></div>
         <p class="list-note" id="listNote"></p>
         <div id="presetResults" class="result-list"></div>
@@ -870,7 +870,7 @@
   }
 
   function getAutoMeal(){
-    const h = todayDate.getHours();
+    const h = new Date().getHours();
     if (h < 10) return "아침";
     if (h < 14) return "점심";
     if (h < 17) return "간식";
@@ -900,6 +900,7 @@
   let draftItems = [];
   let bodyStats = { ...DEFAULT_BODYSTATS };
   let currentMeal = getAutoMeal();
+  let mealManual = false;   // 사용자가 끼니를 직접 골랐으면 자동 변경 안 함
   let editingId = null;
   let userPresets = [];
   let recentItems = [];
@@ -915,6 +916,54 @@
   const $ = (id) => document.getElementById(id);
   const presetId = (p) => p.name + "|" + p.unit;
   const allPresets = () => PRESETS.concat(userPresets);
+
+  /* ---------- HTML 이스케이프 (직접 입력한 이름에 <, " 들어가도 안 깨지게) ---------- */
+  const ESC_MAP = { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" };
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (ch)=> ESC_MAP[ch]);
+
+  /* ---------- 진동 피드백 ---------- */
+  function buzz(ms){
+    try{ if (navigator.vibrate) navigator.vibrate(ms || 15); }catch(err){}
+  }
+
+  /* ---------- 초성 검색 ---------- */
+  const CHO_LIST = ["\u3131","\u3132","\u3134","\u3137","\u3138","\u3139","\u3141","\u3142","\u3143","\u3145","\u3146","\u3147","\u3148","\u3149","\u314a","\u314b","\u314c","\u314d","\u314e"];
+  const CHO_ONLY_RE = /[\u3131-\u314e]/;   // 자음만 입력됐는지
+  const choCache = new Map();
+
+  function toCho(str){
+    let out = "";
+    for (const ch of String(str)){
+      const code = ch.charCodeAt(0);
+      if (code >= 0xac00 && code <= 0xd7a3) out += CHO_LIST[Math.floor((code - 0xac00) / 588)];
+      else out += ch;
+    }
+    return out;
+  }
+  function choOf(str){
+    let v = choCache.get(str);
+    if (v === undefined){ v = toCho(str).toLowerCase(); choCache.set(str, v); }
+    return v;
+  }
+  const haystackOf = (p) => p.name + " " + p.unit + " " + (p.group || "");
+
+  /* 검색어와 얼마나 맞는지. 0이면 제외, 클수록 위로 */
+  function matchScore(p, q){
+    if (!q) return 1;
+    const name = p.name.toLowerCase();
+    const hay = haystackOf(p).toLowerCase();
+    if (name.startsWith(q)) return 6;
+    if (name.includes(q)) return 4;
+    if (hay.includes(q)) return 2;
+    if (CHO_ONLY_RE.test(q)){
+      const nameCho = choOf(p.name);
+      const hayCho = choOf(haystackOf(p));
+      if (nameCho.startsWith(q)) return 5;
+      if (nameCho.includes(q)) return 3;
+      if (hayCho.includes(q)) return 1.5;
+    }
+    return 0;
+  }
 
   /* ---------- 저장소 (window.storage → localStorage → 메모리) ---------- */
   const store = (function(){
@@ -1059,7 +1108,7 @@
     return `
       <div class="entry">
         <div>
-          <div class="name">${e.meal ? `<span class="tag">${e.meal}</span>`:""}${e.name}</div>
+          <div class="name">${e.meal ? `<span class="tag">${esc(e.meal)}</span>`:""}${esc(e.name)}</div>
           <div class="meta num">P ${fmt(e.p)} · C ${fmt(e.c)} · F ${fmt(e.f)} · 당 ${fmt(e.s||0)} · Na ${fmt(e.n||0)}mg</div>
         </div>
         <div class="right"><div class="kcal num">${fmt(e.kcal)}kcal</div></div>
@@ -1482,7 +1531,7 @@
     userPresets.forEach(p=>{
       const row = document.createElement("div");
       row.className = "mini-list-item";
-      row.innerHTML = `<div><div>${p.name} <span style="color:var(--muted);">(${p.unit})</span></div>
+      row.innerHTML = `<div><div>${esc(p.name)} <span style="color:var(--muted);">(${esc(p.unit)})</span></div>
         <div class="mi-sub num">${p.kcal}kcal · P${p.p} · C${p.c} · F${p.f}</div></div>`;
       const del = document.createElement("button");
       del.className = "icon-btn del";
@@ -1719,9 +1768,7 @@
   function fillPresetOptions(sel, filterText){
     const q = (filterText||"").trim().toLowerCase();
     const list = allPresets();
-    const filtered = q
-      ? list.filter(p => (p.name+" "+p.unit+" "+(p.group||"")).toLowerCase().includes(q))
-      : list;
+    const filtered = q ? list.filter(p => matchScore(p, q) > 0) : list;
     const groups = {};
     filtered.forEach(p=>{ groups[p.group] = groups[p.group] || []; groups[p.group].push(p); });
     sel.innerHTML = "";
@@ -1811,17 +1858,13 @@
     });
   }
 
-  function scorePreset(p, q){
+  function scorePreset(p, q, m){
     const id = presetId(p);
     let score = (useCount[id] || 0) * 10;
     if (favorites.includes(id)) score += 25;
     const mc = mealCount[currentMeal];
     if (mc && mc[id]) score += mc[id] * 20;
-    if (q){
-      const name = p.name.toLowerCase();
-      if (name.startsWith(q)) score += 6;
-      else if (name.includes(q)) score += 3;
-    }
+    if (q) score += m || 0;
     return score;
   }
 
@@ -1833,8 +1876,11 @@
     let list = allPresets().filter(p=> p.group !== "대충 기록");
 
     if (q){
-      list = list.filter(p => (p.name+" "+p.unit+" "+(p.group||"")).toLowerCase().includes(q));
-      if (note) note.textContent = `"${filterText.trim()}" 검색 결과`;
+      if (note){
+        note.textContent = CHO_ONLY_RE.test(q)
+          ? `"${filterText.trim()}" 초성 검색 결과`
+          : `"${filterText.trim()}" 검색 결과`;
+      }
     } else {
       const cat = CATEGORIES.find(c=> c.id === activeCat) || CATEGORIES[0];
       if (cat.groups) list = list.filter(p=> cat.groups.includes(p.group));
@@ -1845,12 +1891,17 @@
       }
     }
 
-    const scored = list.map((p,i)=>({ p, i, sc: scorePreset(p, q) }));
+    const scored = [];
+    list.forEach((p,i)=>{
+      const m = q ? matchScore(p, q) : 1;
+      if (!m) return;
+      scored.push({ p, i, sc: scorePreset(p, q, m) });
+    });
     scored.sort((a,b)=> b.sc - a.sc || a.i - b.i);
 
     wrap.innerHTML = "";
     if (scored.length === 0){
-      wrap.innerHTML = `<div class="result-empty">검색 결과가 없어요.<br>"대충 기록"이나 "직접 입력"을 써보세요.</div>`;
+      wrap.innerHTML = `<div class="result-empty">검색 결과가 없어요.<br>\uc790\uc74c\ub9cc \ucce4\uc744 \ub54c\ub294 \ucd08\uc131\uc73c\ub85c\ub3c4 \ucc3e\uc544\uc918\uc694 (\uc608: \u3137\u3131\u3145\u3145).<br>\uadf8\ub798\ub3c4 \uc5c6\uc73c\uba74 "\ub300\ucda9 \uae30\ub85d"\uc774\ub098 "\uc9c1\uc811 \uc785\ub825"\uc744 \uc368\ubcf4\uc138\uc694.</div>`;
       $("moreBtn").style.display = "none";
       return;
     }
@@ -1878,7 +1929,7 @@
     const fav = favorites.includes(id) ? "★ " : "";
     row.innerHTML = `
       <div class="ri-main">
-        <div class="ri-name">${fav}${p.name} <span class="ri-unit">${p.unit}</span>${p.est ? '<span class="ri-badge">추정</span>' : ''}</div>
+        <div class="ri-name">${fav}${esc(p.name)} <span class="ri-unit">${esc(p.unit)}</span>${p.est ? '<span class="ri-badge">추정</span>' : ''}</div>
         <div class="ri-sub num">P ${p.p} · C ${p.c} · F ${p.f}${used ? " · " + used + "회" : ""}</div>
       </div>
       <div class="ri-kcal num">${p.kcal}</div>`;
@@ -2012,6 +2063,7 @@
   }
 
   function quickAdd(p, qty){
+    buzz();
     bumpUse(p);
     const entry = mergeOrAdd(p.name, qty, p);
     pushRecent({ name:p.name, unit:p.unit, kcal:p.kcal, p:p.p, c:p.c, f:p.f, s:p.s||0, n:p.n||0, meal:currentMeal });
@@ -2022,6 +2074,7 @@
   }
 
   function quickAddGram(p, grams){
+    buzz();
     const g = unitGrams(p);
     const m = grams / g;
     const r = (v)=> Math.round((v||0) * m * 10)/10;
@@ -2111,7 +2164,7 @@
       workouts.forEach(w=>{
         const row = document.createElement("div");
         row.className = "wo-item";
-        row.innerHTML = `<div><div class="wo-name">${w.type} <span style="color:var(--muted);font-weight:400;">${w.min}분</span></div>${w.memo ? `<div class="wo-sub">${w.memo}</div>` : ""}</div>`;
+        row.innerHTML = `<div><div class="wo-name">${esc(w.type)} <span style="color:var(--muted);font-weight:400;">${w.min}분</span></div>${w.memo ? `<div class="wo-sub">${esc(w.memo)}</div>` : ""}</div>`;
         const del = document.createElement("button");
         del.className = "icon-btn del";
         del.textContent = "×";
@@ -2137,7 +2190,7 @@
       return;
     }
     row.innerHTML = favPresets.map(p=>
-      `<button class="chip star" data-id="${presetId(p)}">★ ${p.name} (${p.unit})</button>`
+      `<button class="chip star" data-id="${esc(presetId(p))}">★ ${esc(p.name)} (${esc(p.unit)})</button>`
     ).join("");
     row.querySelectorAll(".chip").forEach(btn=>{
       btn.addEventListener("click", ()=>{
@@ -2192,6 +2245,7 @@
   }
 
   function addCombo(combo){
+    buzz(25);
     combo.items.forEach(it=>{
       const p = allPresets().find(x=> x.name===it.name && x.unit===it.unit);
       if (!p) return;
@@ -2210,7 +2264,7 @@
     }
     wrap.innerHTML = draftItems.map((it,i)=>
       `<div class="entry" style="padding:6px 0;">
-        <div class="name" style="font-size:13px;">${it.name} (${it.unit}) x${it.qty}</div>
+        <div class="name" style="font-size:13px;">${esc(it.name)} (${esc(it.unit)}) x${it.qty}</div>
         <button class="icon-btn del" data-i="${i}">×</button>
       </div>`
     ).join("");
@@ -2228,7 +2282,7 @@
     wrap.innerHTML = `<p class="preset-macro" style="margin-bottom:6px;">내가 만든 세트</p>` +
       customCombos.map((c,i)=>
         `<div class="entry" style="padding:6px 0;">
-          <div class="name" style="font-size:13px;">${c.name} <span class="tag">${c.meal}</span></div>
+          <div class="name" style="font-size:13px;">${esc(c.name)} <span class="tag">${esc(c.meal)}</span></div>
           <button class="icon-btn del" data-i="${i}">×</button>
         </div>`
       ).join("");
@@ -2767,6 +2821,10 @@
     if (goal === "cut") targetKcal = tdee * 0.8;
     if (goal === "bulk") targetKcal = tdee * 1.1;
 
+    // 감량 목표가 기초대사량보다 낮게 잡히면 기초대사량으로 올림
+    let floored = false;
+    if (targetKcal < bmr){ targetKcal = bmr; floored = true; }
+
     const proteinG = weight * 2.0;
     const fatG = weight * 0.8;
     const proteinKcal = proteinG * 4;
@@ -2779,7 +2837,8 @@
 
     return {
       bmr: Math.round(bmr), tdee: Math.round(tdee), targetKcal: Math.round(targetKcal),
-      proteinG: Math.round(proteinG), fatG: Math.round(fatG), carbG: Math.round(carbG)
+      proteinG: Math.round(proteinG), fatG: Math.round(fatG), carbG: Math.round(carbG),
+      floored
     };
   }
 
@@ -2836,6 +2895,15 @@
   }
 
   // ---------- NAV ----------
+  function showPane(which){
+    const map = { preset:["tabPreset","presetPane"], rough:["tabRough","roughPane"], custom:["tabCustom","customPane"] };
+    Object.keys(map).forEach(k=>{
+      const [tab, pane] = map[k];
+      $(tab).classList.toggle("active", k === which);
+      $(pane).style.display = (k === which) ? "" : "none";
+    });
+  }
+
   function showView(view){
     $("todayView").style.display = view === "today" ? "block" : "none";
     $("historyView").style.display = view === "history" ? "block" : "none";
@@ -2856,8 +2924,8 @@
       setActiveDate(new Date(v + "T00:00:00"));
     });
 
-    $("waterPlus").addEventListener("click", ()=>{ water++; saveWater(); renderWater(); });
-    $("waterMinus").addEventListener("click", ()=>{ water = Math.max(0, water-1); saveWater(); renderWater(); });
+    $("waterPlus").addEventListener("click", ()=>{ water++; saveWater(); renderWater(); buzz(); });
+    $("waterMinus").addEventListener("click", ()=>{ water = Math.max(0, water-1); saveWater(); renderWater(); buzz(); });
 
     $("copyPrevDayBtn").addEventListener("click", copyPrevDay);
     $("downloadBtn").addEventListener("click", downloadBackup);
@@ -2908,6 +2976,7 @@
     $("mealTags").querySelectorAll(".meal-tag").forEach(btn=>{
       btn.addEventListener("click", ()=>{
         currentMeal = btn.dataset.meal;
+        mealManual = true;
         $("mealTags").querySelectorAll(".meal-tag").forEach(b=>b.classList.remove("active"));
         btn.classList.add("active");
         openRowId = null;
@@ -2964,14 +3033,6 @@
 
     $("cancelEditBtn").addEventListener("click", cancelEdit);
 
-    function showPane(which){
-      const map = { preset:["tabPreset","presetPane"], rough:["tabRough","roughPane"], custom:["tabCustom","customPane"] };
-      Object.keys(map).forEach(k=>{
-        const [tab, pane] = map[k];
-        $(tab).classList.toggle("active", k === which);
-        $(pane).style.display = (k === which) ? "" : "none";
-      });
-    }
     $("tabPreset").addEventListener("click", ()=> showPane("preset"));
     $("tabRough").addEventListener("click", ()=> showPane("rough"));
     $("tabCustom").addEventListener("click", ()=> showPane("custom"));
@@ -3000,7 +3061,8 @@
       $("tCarb").value = r.carbG;
       $("tFat").value = r.fatG;
       $("calcResult").textContent =
-        `BMR ${r.bmr}kcal · TDEE ${r.tdee}kcal → 목표 ${r.targetKcal}kcal (단백질 ${r.proteinG}g · 탄수 ${r.carbG}g · 지방 ${r.fatG}g). 아래 "목표치 저장"을 눌러야 실제 적용됩니다.`;
+        `BMR ${r.bmr}kcal · TDEE ${r.tdee}kcal → 목표 ${r.targetKcal}kcal (단백질 ${r.proteinG}g · 탄수 ${r.carbG}g · 지방 ${r.fatG}g). 아래 "목표치 저장"을 눌러야 실제 적용됩니다.`
+        + (r.floored ? ` ※ 계산값이 기초대사량보다 낮게 나와서 ${r.bmr}kcal로 올렸어요. 더 낮추고 싶다면 전문가와 상의하는 편이 좋습니다.` : "");
     });
 
     $("saveWeightBtn").addEventListener("click", async ()=>{
@@ -3078,6 +3140,65 @@
     $("importBtn").addEventListener("click", importAllData);
   }
 
+  /* ---------- 홈화면 아이콘 롱프레스 단축키 (?a=water / add / weight) ---------- */
+  function openCard(foldId){
+    const card = document.querySelector(`.card.fold[data-fold="${foldId}"]`);
+    if (!card) return null;
+    if (card.classList.contains("collapsed")){
+      card.classList.remove("collapsed");
+      updateFoldAllBtn();
+      saveFoldState();
+    }
+    setTimeout(()=> card.scrollIntoView({ behavior:"smooth", block:"start" }), 60);
+    return card;
+  }
+
+  async function handleShortcut(){
+    let action = "";
+    try{ action = new URLSearchParams(location.search).get("a") || ""; }catch(err){}
+    if (!action) return;
+    // 새로고침해도 같은 동작이 반복되지 않게 주소에서 지움
+    try{ history.replaceState(null, "", location.pathname); }catch(err){}
+
+    if (action === "water"){
+      // 앱이 막 뜬 시점이라 진동은 브라우저가 어차피 막습니다
+      water++;
+      await saveWater();
+      renderWater();
+      openCard("water");
+      return;
+    }
+    if (action === "add"){
+      openCard("add");
+      showPane("preset");
+      const s = $("presetSearch");
+      if (s) setTimeout(()=>{ s.focus(); }, 250);
+      return;
+    }
+    if (action === "weight"){
+      openCard("weight");
+      const w = $("weightInput");
+      if (w) setTimeout(()=>{ w.focus(); }, 250);
+      return;
+    }
+  }
+
+  /* ---------- 앱을 켜둔 채 날짜가 바뀌는 문제 ---------- */
+  document.addEventListener("visibilitychange", ()=>{
+    if (document.hidden) return;
+    if (toKey(new Date()) !== TODAY_KEY){
+      location.reload();   // 자정을 넘겼으면 새 날짜로 다시 시작
+      return;
+    }
+    if (mealManual || editingId) return;
+    const m = getAutoMeal();
+    if (m !== currentMeal){
+      currentMeal = m;
+      applyAutoMealTagUI();
+      renderResults($("presetSearch") ? $("presetSearch").value : "");
+    }
+  });
+
   function checkStorageMode(){
     if (store.mode === "memory"){
       const banner = $("saveErrorBanner");
@@ -3092,14 +3213,49 @@
   initFolds();
   checkStorageMode();
   loadFoldState();
-  loadToday();
+  loadToday().then(handleShortcut);
 })();
 
 /* 서비스워커 등록 (https 주소에서만 동작, 파일로 열면 조용히 건너뜀) */
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      // 새 버전이 배포되면 배너로 알려주고, 누르면 바로 교체
+      reg.addEventListener("updatefound", () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener("statechange", () => {
+          if (sw.state === "installed" && navigator.serviceWorker.controller) {
+            showUpdateBanner(sw);
+          }
+        });
+      });
+    }).catch(() => {});
+
+    let reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (reloading) return;
+      reloading = true;
+      location.reload();
+    });
   });
+}
+
+function showUpdateBanner(sw) {
+  if (document.getElementById("updateBanner")) return;
+  const bar = document.createElement("button");
+  bar.id = "updateBanner";
+  bar.textContent = "새 버전이 있어요 — 눌러서 업데이트";
+  bar.style.cssText =
+    "position:fixed; left:12px; right:12px; bottom:14px; z-index:99;" +
+    "max-width:456px; margin:0 auto; padding:13px; border:none; border-radius:11px;" +
+    "background:#8b5cf6; color:#fff; font-size:14px; font-weight:700;" +
+    "font-family:inherit; box-shadow:0 6px 20px rgba(0,0,0,.45); cursor:pointer;";
+  bar.addEventListener("click", () => {
+    bar.textContent = "업데이트 중...";
+    sw.postMessage({ type: "SKIP_WAITING" });
+  });
+  document.body.appendChild(bar);
 }
 </script>
 </body>
