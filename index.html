@@ -308,6 +308,37 @@
   .wo-item:last-child{ border-bottom:none; }
   .wo-item .wo-name{ font-size:13.5px; font-weight:600; }
   .wo-item .wo-sub{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+
+  /* 분석 */
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+  .stat-box{ background:var(--surface-2); border-radius:10px; padding:10px 11px; }
+  .stat-box .sb-label{ font-size:11px; color:var(--muted); }
+  .stat-box .sb-val{ font-size:17px; font-weight:800; margin-top:3px; }
+  .stat-box .sb-sub{ font-size:10.5px; color:var(--muted); margin-top:2px; }
+  .stat-box.good .sb-val{ color:var(--good); }
+  .stat-box.warn .sb-val{ color:var(--warn); }
+  .stat-box.over .sb-val{ color:var(--over); }
+
+  .dow-row{ display:flex; align-items:flex-end; gap:5px; height:90px; margin:6px 0 4px; }
+  .dow-col{ flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; }
+  .dow-bar{ width:100%; background:var(--accent); border-radius:5px 5px 0 0; min-height:3px; }
+  .dow-bar.over{ background:var(--over); }
+  .dow-bar.none{ background:var(--surface-2); }
+  .dow-label{ font-size:10.5px; color:var(--muted); margin-top:4px; }
+  .dow-val{ font-size:9.5px; color:var(--muted); margin-bottom:3px; }
+
+  .insight{ font-size:12.5px; line-height:1.65; color:var(--text); background:var(--surface-2); border-radius:10px; padding:11px 12px; margin-top:10px; }
+  .insight b{ color:var(--accent); }
+  .insight.warn{ border-left:3px solid var(--warn); }
+  .insight.good{ border-left:3px solid var(--good); }
+  .analysis-note{ font-size:11px; color:var(--muted); line-height:1.6; margin-top:10px; }
+  .big-stat{ text-align:center; padding:6px 0 10px; }
+  .big-stat .bs-val{ font-size:34px; font-weight:800; line-height:1; }
+  .big-stat .bs-unit{ font-size:14px; font-weight:500; color:var(--muted); margin-left:3px; }
+  .big-stat .bs-label{ font-size:12px; color:var(--muted); margin-top:6px; }
+  .cmp-row{ display:flex; justify-content:space-between; font-size:12.5px; padding:7px 0; border-bottom:1px solid var(--border); }
+  .cmp-row:last-child{ border-bottom:none; }
+  .cmp-row span:last-child{ font-weight:700; }
 </style>
 </head>
 <body>
@@ -374,6 +405,7 @@
           <button id="waterMinus">− 한 컵</button>
           <button id="waterPlus">＋ 한 컵 (250ml)</button>
         </div>
+        <div id="waterHistory" style="margin-top:12px;"></div>
       </div>
     </div>
 
@@ -614,6 +646,18 @@
 
   <!-- ============ HISTORY VIEW ============ -->
   <div id="historyView" style="display:none;">
+    <div class="card fold" data-fold="weekly">
+      <button class="card-head"><span class="head-title">주간 리포트</span><span class="head-sub" id="weeklyHeadSub"></span><span class="chev">▾</span></button>
+      <div class="card-body">
+        <div id="weeklyWrap"><div class="loading">불러오는 중...</div></div>
+      </div>
+    </div>
+    <div class="card fold" data-fold="tdee">
+      <button class="card-head"><span class="head-title">실제 유지 칼로리</span><span class="head-sub" id="tdeeHeadSub"></span><span class="chev">▾</span></button>
+      <div class="card-body">
+        <div id="tdeeWrap"><div class="loading">불러오는 중...</div></div>
+      </div>
+    </div>
     <div class="card fold" data-fold="weightChart">
       <button class="card-head"><span class="head-title">체중 변화</span><span class="chev">▾</span></button>
       <div class="card-body">
@@ -639,6 +683,10 @@
     <div class="card">
       <p class="section-title">이날 먹은 것</p>
       <div id="detailLogList"></div>
+    </div>
+    <div class="card">
+      <p class="section-title">물 · 운동</p>
+      <div id="detailExtra"></div>
     </div>
   </div>
 </div>
@@ -977,12 +1025,17 @@
       const consumed = t[r.key];
       const target = tg[r.key];
       const pct = target > 0 ? (consumed/target*100) : 0;
+      let extra = "";
+      if (r.isProtein){
+        const kg = Number($("weightInput") && $("weightInput").value) || bodyStats.weight || 0;
+        if (kg > 0 && consumed > 0) extra = ` <span style="color:var(--muted);font-weight:400;">(${(consumed/kg).toFixed(1)}g/kg)</span>`;
+      }
       const group = document.createElement("div");
       group.className = "bar-group";
       group.innerHTML = `
         <div class="bar-label">
           <span>${r.label}</span>
-          <span class="num"><b>${fmt(consumed)}</b> / ${fmt(target)}${r.unit}</span>
+          <span class="num"><b>${fmt(consumed)}</b> / ${fmt(target)}${r.unit}${extra}</span>
         </div>
         <div class="bar-track">
           <div class="bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor(pct, r.isProtein)};"></div>
@@ -1319,6 +1372,47 @@
     $("waterMeta").innerHTML = `<b>${ml}ml</b> / ${WATER_GOAL_CUPS * WATER_CUP_ML}ml (${water}컵)`;
     const sub = $("waterHeadSub");
     if (sub) sub.textContent = water > 0 ? `${ml}ml` : "";
+    renderWaterHistory();
+  }
+
+  async function renderWaterHistory(){
+    const wrap = $("waterHistory");
+    if (!wrap) return;
+    const DOW = ["일","월","화","수","목","금","토"];
+    const days = [];
+    for (let i=6;i>=0;i--){
+      const d = new Date(activeDate);
+      d.setDate(d.getDate()-i);
+      const key = toKey(d);
+      let cups = 0;
+      if (key === DATE_KEY) cups = water;
+      else {
+        try{ const r = await store.get(WATER_PREFIX + key, false); if (r && r.value) cups = Number(r.value); }catch(e){}
+      }
+      days.push({ key, dow:d.getDay(), cups });
+    }
+    const recorded = days.filter(d=> d.cups > 0);
+    const maxCups = Math.max(WATER_GOAL_CUPS, ...days.map(d=> d.cups)) || 1;
+
+    let html = `<p class="section-title" style="margin:0 0 4px;">최근 7일</p><div class="dow-row" style="height:70px;">`;
+    days.forEach(d=>{
+      const h = d.cups ? Math.max(4, (d.cups / maxCups) * 54) : 3;
+      const hit = d.cups >= WATER_GOAL_CUPS;
+      html += `<div class="dow-col">
+        <div class="dow-val num">${d.cups || ""}</div>
+        <div class="dow-bar${d.cups ? "" : " none"}" style="height:${h}px;${d.cups ? "background:" + (hit ? "#38bdf8" : "#38bdf877") + ";" : ""}"></div>
+        <div class="dow-label"${d.key === DATE_KEY ? ' style="color:var(--text);font-weight:700;"' : ""}>${DOW[d.dow]}</div>
+      </div>`;
+    });
+    html += `</div>`;
+    if (recorded.length){
+      const avg = recorded.reduce((s,d)=> s + d.cups, 0) / recorded.length * WATER_CUP_ML;
+      const hitDays = days.filter(d=> d.cups >= WATER_GOAL_CUPS).length;
+      html += `<p class="analysis-note" style="margin-top:4px;">기록 ${recorded.length}일 평균 <b style="color:var(--text);">${fmt(avg)}ml</b> · 목표 달성 ${hitDays}일</p>`;
+    } else {
+      html += `<p class="analysis-note" style="margin-top:4px;">아직 물 기록이 없어요.</p>`;
+    }
+    wrap.innerHTML = html;
   }
 
   /* ---------- 최근 먹은 것 ---------- */
@@ -2171,7 +2265,263 @@
   }
 
   // ---------- HISTORY VIEW ----------
+  /* 최근 N일치 데이터를 한 번에 모아오기 */
+  async function loadRange(nDays){
+    const out = [];
+    for (let i=0;i<nDays;i++){
+      const d = new Date(todayDate);
+      d.setDate(d.getDate()-i);
+      const key = toKey(d);
+      const rec = { date:key, dow:d.getDay(), entries:null, totals:null, kg:null, water:null };
+      try{
+        const r = await store.get(ENTRIES_PREFIX + key, false);
+        if (r && r.value){
+          const list = JSON.parse(r.value);
+          if (list.length){ rec.entries = list; rec.totals = totalsOf(list); }
+        }
+      }catch(err){}
+      try{
+        const r = await store.get(WEIGHT_PREFIX + key, false);
+        if (r && r.value) rec.kg = parseFloat(r.value);
+      }catch(err){}
+      try{
+        const r = await store.get(WATER_PREFIX + key, false);
+        if (r && r.value) rec.water = Number(r.value);
+      }catch(err){}
+      out.push(rec);
+    }
+    return out.reverse();
+  }
+
+  /* ---------- 주간 리포트 ---------- */
+  async function loadWeekly(){
+    const wrap = $("weeklyWrap");
+    const data = await loadRange(28);
+    const last7 = data.slice(-7);
+    const logged7 = last7.filter(d=> d.totals);
+
+    if (logged7.length < 2){
+      wrap.innerHTML = `<div class="empty">기록이 2일 이상 쌓이면 리포트가 나와요.<br>지금 ${logged7.length}일치 있어요.</div>`;
+      $("weeklyHeadSub").textContent = "";
+      return;
+    }
+
+    const avg = (arr, f) => arr.reduce((s,d)=> s + f(d), 0) / arr.length;
+    const avgKcal = avg(logged7, d=> d.totals.kcal);
+    const avgP = avg(logged7, d=> d.totals.p);
+    const onTarget = logged7.filter(d=> d.totals.kcal <= targets.kcal * 1.05).length;
+    const proteinHit = logged7.filter(d=> d.totals.p >= targets.p * 0.9).length;
+
+    const weights = data.filter(d=> d.kg != null);
+    const latestKg = weights.length ? weights[weights.length-1].kg : (bodyStats.weight || 0);
+    const gPerKg = latestKg ? avgP / latestKg : 0;
+
+    const waterDays = last7.filter(d=> d.water != null && d.water > 0);
+    const avgWater = waterDays.length ? avg(waterDays, d=> d.water) * WATER_CUP_ML : 0;
+
+    const kcalCls = avgKcal > targets.kcal * 1.05 ? "over" : (avgKcal < targets.kcal * 0.75 ? "warn" : "good");
+    const pCls = gPerKg >= 1.6 ? "good" : (gPerKg >= 1.2 ? "warn" : "over");
+
+    wrap.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-box ${kcalCls}">
+          <div class="sb-label">7일 평균 칼로리</div>
+          <div class="sb-val num">${fmt(avgKcal)}</div>
+          <div class="sb-sub">목표 ${targets.kcal}kcal</div>
+        </div>
+        <div class="stat-box ${pCls}">
+          <div class="sb-label">체중당 단백질</div>
+          <div class="sb-val num">${gPerKg.toFixed(1)}<span style="font-size:12px;">g/kg</span></div>
+          <div class="sb-sub">평균 ${fmt(avgP)}g · ${latestKg}kg 기준</div>
+        </div>
+        <div class="stat-box">
+          <div class="sb-label">목표 안에 든 날</div>
+          <div class="sb-val num">${onTarget}<span style="font-size:12px;">/${logged7.length}일</span></div>
+          <div class="sb-sub">단백질 달성 ${proteinHit}일</div>
+        </div>
+        <div class="stat-box">
+          <div class="sb-label">7일 평균 물</div>
+          <div class="sb-val num">${avgWater ? fmt(avgWater) : "-"}<span style="font-size:12px;">${avgWater ? "ml" : ""}</span></div>
+          <div class="sb-sub">${waterDays.length}일 기록</div>
+        </div>
+      </div>`;
+
+    $("weeklyHeadSub").textContent = `${fmt(avgKcal)}kcal · ${gPerKg.toFixed(1)}g/kg`;
+
+    // 요일별 패턴 (최근 4주)
+    const DOW = ["일","월","화","수","목","금","토"];
+    const byDow = DOW.map((_,i)=>{
+      const ds = data.filter(d=> d.dow === i && d.totals);
+      return ds.length ? ds.reduce((s,d)=> s + d.totals.kcal, 0) / ds.length : null;
+    });
+    const maxV = Math.max(...byDow.filter(v=> v != null), targets.kcal) || 1;
+
+    if (byDow.some(v=> v != null)){
+      const dowBox = document.createElement("div");
+      dowBox.innerHTML = `<p class="section-title" style="margin:14px 0 2px;">요일별 평균 (최근 4주)</p>`;
+      const row = document.createElement("div");
+      row.className = "dow-row";
+      byDow.forEach((v,i)=>{
+        const col = document.createElement("div");
+        col.className = "dow-col";
+        const h = v == null ? 3 : Math.max(4, (v / maxV) * 74);
+        const cls = v == null ? "none" : (v > targets.kcal * 1.1 ? "over" : "");
+        col.innerHTML = `
+          <div class="dow-val num">${v == null ? "" : Math.round(v)}</div>
+          <div class="dow-bar ${cls}" style="height:${h}px;"></div>
+          <div class="dow-label">${DOW[i]}</div>`;
+        row.appendChild(col);
+      });
+      dowBox.appendChild(row);
+      wrap.appendChild(dowBox);
+
+      const valid = byDow.map((v,i)=>({v,i})).filter(x=> x.v != null);
+      if (valid.length >= 3){
+        const worst = valid.reduce((a,b)=> b.v > a.v ? b : a);
+        const best = valid.reduce((a,b)=> b.v < a.v ? b : a);
+        if (worst.v > targets.kcal * 1.1){
+          wrap.appendChild(mkInsight("warn", `<b>${DOW[worst.i]}요일</b>이 평균 ${fmt(worst.v)}kcal로 가장 높아요. 목표보다 ${fmt(worst.v - targets.kcal)}kcal 많습니다. 이 날 하루만 잡아도 주간 평균이 ${fmt((worst.v - targets.kcal)/7)}kcal 내려가요.`));
+        } else {
+          wrap.appendChild(mkInsight("good", `요일별 편차가 크지 않아요. 가장 높은 <b>${DOW[worst.i]}요일</b>도 ${fmt(worst.v)}kcal로 목표 근처입니다.`));
+        }
+      }
+    }
+
+    // 끼니별 평균
+    const mealSum = {};
+    MEAL_ORDER.forEach(m=> mealSum[m] = 0);
+    logged7.forEach(d=>{
+      d.entries.forEach(e=>{ const m = e.meal || "기타"; if (mealSum[m] != null) mealSum[m] += e.kcal; });
+    });
+    const mealAvg = MEAL_ORDER.map(m=>({ m, v: mealSum[m] / logged7.length })).filter(x=> x.v > 0);
+    if (mealAvg.length){
+      const top = mealAvg.reduce((a,b)=> b.v > a.v ? b : a);
+      const box = document.createElement("div");
+      box.innerHTML = `<p class="section-title" style="margin:16px 0 4px;">끼니별 하루 평균</p>`;
+      mealAvg.forEach(x=>{
+        const r = document.createElement("div");
+        r.className = "cmp-row";
+        r.innerHTML = `<span>${x.m}</span><span class="num">${fmt(x.v)}kcal</span>`;
+        box.appendChild(r);
+      });
+      wrap.appendChild(box);
+      wrap.appendChild(mkInsight("", `칼로리가 가장 몰리는 끼니는 <b>${top.m}</b>(평균 ${fmt(top.v)}kcal)이에요. 줄일 곳을 찾는다면 여기부터 보세요.`));
+    }
+
+    const note = document.createElement("p");
+    note.className = "analysis-note";
+    note.textContent = `기록한 날만 평균에 넣어요 (최근 7일 중 ${logged7.length}일). 안 적은 날은 0kcal로 세지 않습니다.`;
+    wrap.appendChild(note);
+  }
+
+  function mkInsight(cls, html){
+    const el = document.createElement("div");
+    el.className = "insight" + (cls ? " " + cls : "");
+    el.innerHTML = html;
+    return el;
+  }
+
+  /* ---------- 실제 유지 칼로리 역산 ---------- */
+  async function loadTdee(){
+    const wrap = $("tdeeWrap");
+    const data = await loadRange(60);
+    const logged = data.filter(d=> d.totals);
+    const weighed = data.filter(d=> d.kg != null);
+
+    const MIN_DAYS = 10;
+    if (logged.length < MIN_DAYS || weighed.length < 4){
+      wrap.innerHTML = `
+        <div class="empty" style="padding:10px 0; text-align:left; line-height:1.7;">
+          아직 계산할 수 없어요.<br>
+          식단 기록 <b>${logged.length}/${MIN_DAYS}일</b>, 체중 기록 <b>${weighed.length}/4일</b><br>
+          <span style="font-size:11.5px;">최소 10일치 식단과 4번 이상의 체중이 있어야 의미 있는 숫자가 나와요.</span>
+        </div>`;
+      $("tdeeHeadSub").textContent = "";
+      return;
+    }
+
+    // 체중 추세: 처음/마지막 7일 평균으로 노이즈 제거
+    const firstW = weighed.slice(0, Math.min(7, Math.ceil(weighed.length/2)));
+    const lastW = weighed.slice(-Math.min(7, Math.ceil(weighed.length/2)));
+    const wStart = firstW.reduce((s,d)=> s+d.kg, 0) / firstW.length;
+    const wEnd = lastW.reduce((s,d)=> s+d.kg, 0) / lastW.length;
+
+    const midFirst = firstW[Math.floor(firstW.length/2)].date;
+    const midLast = lastW[Math.floor(lastW.length/2)].date;
+    const spanDays = Math.round((new Date(midLast) - new Date(midFirst)) / 86400000);
+
+    if (spanDays < 7){
+      wrap.innerHTML = `<div class="empty" style="line-height:1.7;">체중 기록 기간이 ${spanDays}일뿐이에요.<br>최소 7일 이상 간격이 필요합니다.</div>`;
+      $("tdeeHeadSub").textContent = "";
+      return;
+    }
+
+    const inWindow = logged.filter(d=> d.date >= midFirst && d.date <= midLast);
+    if (inWindow.length < 7){
+      wrap.innerHTML = `<div class="empty" style="line-height:1.7;">체중을 잰 기간(${spanDays}일) 안에 식단 기록이 ${inWindow.length}일뿐이에요.<br>같은 기간에 7일 이상 기록이 필요합니다.</div>`;
+      $("tdeeHeadSub").textContent = "";
+      return;
+    }
+
+    const avgIntake = inWindow.reduce((s,d)=> s + d.totals.kcal, 0) / inWindow.length;
+    const kgChange = wEnd - wStart;
+    const KCAL_PER_KG = 7700;
+    const actualTdee = avgIntake - (kgChange * KCAL_PER_KG / spanDays);
+
+    // 공식 추정치와 비교
+    const bs = bodyStats;
+    const bmr = 10*(bs.weight||wEnd) + 6.25*(bs.height||175) - 5*(bs.age||30) + (bs.gender==="female" ? -161 : 5);
+    const formulaTdee = bmr * Number(bs.activity || 1.55);
+    const diff = actualTdee - formulaTdee;
+
+    const perWeek = kgChange / spanDays * 7;
+    const coverage = inWindow.length / (spanDays + 1);
+    const reliable = inWindow.length >= 14 && spanDays >= 14 && coverage >= 0.6;
+
+    wrap.innerHTML = `
+      <div class="big-stat">
+        <div><span class="bs-val num">${Math.round(actualTdee)}</span><span class="bs-unit">kcal</span></div>
+        <div class="bs-label">먹은 양과 실제 체중 변화로 역산한 유지 칼로리</div>
+      </div>
+      <div class="cmp-row"><span>분석 기간</span><span class="num">${spanDays}일 (${midFirst.slice(5)} ~ ${midLast.slice(5)})</span></div>
+      <div class="cmp-row"><span>이 기간 식단 기록</span><span class="num">${inWindow.length}일 (${Math.round(coverage*100)}%)</span></div>
+      <div class="cmp-row"><span>평균 섭취</span><span class="num">${fmt(avgIntake)}kcal</span></div>
+      <div class="cmp-row"><span>체중 변화</span><span class="num">${kgChange >= 0 ? "+" : ""}${fmt(kgChange)}kg (주 ${perWeek >= 0 ? "+" : ""}${fmt(perWeek)}kg)</span></div>
+      <div class="cmp-row"><span>공식 추정치 (TDEE)</span><span class="num">${Math.round(formulaTdee)}kcal</span></div>`;
+
+    if (Math.abs(diff) >= 150){
+      const dir = diff > 0 ? "높아요" : "낮아요";
+      const advice = diff > 0
+        ? "생각보다 잘 태우고 있어요. 지금 목표가 너무 빡빡하면 조금 올려도 됩니다."
+        : "공식보다 적게 태우고 있어요. 감량이 더디면 목표 칼로리를 낮추거나 활동량을 늘려보세요.";
+      wrap.appendChild(mkInsight(diff > 0 ? "good" : "warn",
+        `실제 유지 칼로리가 공식 추정치보다 <b>${Math.abs(Math.round(diff))}kcal ${dir}</b>. ${advice}`));
+    } else {
+      wrap.appendChild(mkInsight("good", `공식 추정치와 거의 같아요 (차이 ${Math.abs(Math.round(diff))}kcal). 지금 설정한 목표를 믿고 가셔도 됩니다.`));
+    }
+
+    // 목표 제안
+    const cutTarget = Math.round((actualTdee - 500) / 10) * 10;
+    const paceNow = perWeek;
+    wrap.appendChild(mkInsight("",
+      `이 숫자 기준으로 <b>주 0.5kg 감량</b>을 하려면 하루 약 <b>${cutTarget}kcal</b>을 먹으면 돼요. `
+      + (Math.abs(paceNow) < 0.05
+        ? "지금은 사실상 유지 중이에요."
+        : `현재 속도는 주 ${fmt(Math.abs(paceNow))}kg ${paceNow < 0 ? "감량" : "증가"}입니다.`)));
+
+    const note = document.createElement("p");
+    note.className = "analysis-note";
+    note.innerHTML = reliable
+      ? "지방 1kg = 7,700kcal로 계산했어요. 2주 이상 꾸준히 기록해서 신뢰도가 괜찮은 편입니다."
+      : "⚠️ 아직 표본이 적어요. 기록이 빠진 날이 많거나 기간이 짧으면 숫자가 크게 흔들립니다. 2~4주 더 쌓이면 정확해져요. 또 체중은 수분·염분·배변으로 하루 1kg 넘게 움직이니 짧은 기간의 변화는 지방 증감이 아닐 수 있습니다.";
+    wrap.appendChild(note);
+
+    $("tdeeHeadSub").textContent = `${Math.round(actualTdee)}kcal`;
+  }
+
   async function loadHistory(){
+    await loadWeekly();
+    await loadTdee();
     await loadWeightChart();
 
     const container = $("historyList");
@@ -2196,7 +2546,10 @@
         const res = await store.get(key, false);
         const list = res && res.value ? JSON.parse(res.value) : [];
         if (list.length === 0) continue;
-        dayData.push({ date: dateStr, entries: list, totals: totalsOf(list) });
+        let w = null, wo = [];
+        try{ const r = await store.get(WATER_PREFIX + dateStr, false); if (r && r.value) w = Number(r.value); }catch(e){}
+        try{ const r = await store.get(WORKOUT_PREFIX + dateStr, false); if (r && r.value) wo = JSON.parse(r.value); }catch(e){}
+        dayData.push({ date: dateStr, entries: list, totals: totalsOf(list), water: w, workouts: wo });
       }catch(err){ /* skip */ }
     }
     dayData.sort((a,b)=> b.date.localeCompare(a.date));
@@ -2234,7 +2587,7 @@
         row.innerHTML = `
           <div>
             <div class="d-date"><span class="dot" style="background:${dotColor}"></span>${label}</div>
-            <div class="d-sub num">단백질 ${fmt(d.totals.p)}g · 항목 ${d.entries.length}개</div>
+            <div class="d-sub num">단백질 ${fmt(d.totals.p)}g${d.water ? " · 💧" + (d.water*WATER_CUP_ML) + "ml" : ""}${(d.workouts && d.workouts.length) ? " · 🏋 " + d.workouts.reduce((a,b)=>a+(b.min||0),0) + "분" : ""}</div>
           </div>
           <div class="d-right"><div class="d-kcal num">${fmt(d.totals.kcal)}kcal</div></div>`;
         row.addEventListener("click", ()=> openDayDetail(d));
@@ -2385,6 +2738,16 @@
     list.innerHTML = d.entries.length === 0
       ? `<div class="empty">이날 기록이 없어요.</div>`
       : d.entries.slice().reverse().map(e=>entryRowHtml(e, "detail")).join("");
+
+    const extra = $("detailExtra");
+    let html = "";
+    if (d.water) html += `<div class="cmp-row"><span>💧 물</span><span class="num">${d.water*WATER_CUP_ML}ml (${d.water}컵)</span></div>`;
+    if (d.workouts && d.workouts.length){
+      d.workouts.forEach(w=>{
+        html += `<div class="cmp-row"><span>🏋 ${w.type}${w.memo ? " · " + w.memo : ""}</span><span class="num">${w.min}분</span></div>`;
+      });
+    }
+    extra.innerHTML = html || `<div class="empty" style="padding:10px 0;">물·운동 기록이 없어요.</div>`;
   }
 
   // ---------- TDEE CALCULATOR ----------
