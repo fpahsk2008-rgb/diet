@@ -35,19 +35,77 @@
     -webkit-font-smoothing:antialiased;
   }
   .num{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
-  #app{ max-width:480px; margin:0 auto; padding:20px 16px 60px; }
+  #app{ max-width:480px; margin:0 auto; padding:20px 16px calc(84px + env(safe-area-inset-bottom)); }
   header{ margin-bottom:14px; }
   header .eyebrow{ color:var(--accent); font-size:13px; font-weight:600; margin:0 0 4px; }
   header h1{ font-size:22px; margin:0 0 2px; font-weight:800; letter-spacing:-0.02em; }
   header .date{ color:var(--muted); font-size:13px; }
 
-  .main-tabs{
-    display:flex; gap:6px; margin-bottom:16px;
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:11px; padding:4px;
+  /* ---------- 하단 고정 네비 ---------- */
+  .bottom-nav{
+    position:fixed; left:0; right:0; bottom:0; z-index:50;
+    display:flex; justify-content:center; gap:2px;
+    background:rgba(20,21,27,.94); backdrop-filter:blur(12px);
+    border-top:1px solid var(--border);
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
   }
-  .main-tab{ flex:1; background:transparent; color:var(--muted); padding:9px; border-radius:8px; font-size:13.5px; font-weight:700; }
-  .main-tab.active{ background:var(--accent); color:#fff; }
+  .bnav-inner{ display:flex; gap:2px; width:100%; max-width:480px; }
+  .bnav-btn{
+    flex:1; background:transparent; color:var(--muted);
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    padding:7px 2px 5px; border-radius:10px; font-size:11px; font-weight:700; font-family:inherit;
+  }
+  .bnav-btn .bn-ico{ font-size:17px; line-height:1; }
+  .bnav-btn.active{ color:var(--accent); background:var(--accent-dim); }
+  .bnav-btn .bn-badge{
+    font-size:9.5px; font-weight:700; color:var(--muted);
+    font-family:ui-monospace, monospace; line-height:1; min-height:10px;
+  }
+  .bnav-btn.active .bn-badge{ color:var(--accent); }
+
+  /* ---------- 남은 예산 바 ---------- */
+  .budget-bar{
+    position:sticky; top:0; z-index:20; margin:0 0 14px;
+    background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:13px 14px;
+  }
+  .bb-top{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px; }
+  .bb-lab{ font-size:12px; color:var(--muted); font-weight:600; }
+  .bb-val{ font-size:24px; font-weight:800; }
+  .bb-val.over{ color:var(--over); }
+  .bb-macros{ display:flex; gap:12px; font-size:11.5px; color:var(--muted); }
+  .bb-macros b{ color:var(--text); font-weight:700; }
+  .bb-btn{
+    width:100%; margin-top:10px; background:var(--surface-2); color:var(--accent);
+    border:1px solid var(--accent); border-radius:9px; padding:9px; font-size:13px; font-weight:700;
+  }
+  .rec-row{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:9px 0; border-bottom:1px solid var(--border);
+  }
+  .rec-row:last-child{ border-bottom:none; }
+  .rec-name{ font-size:13px; line-height:1.45; }
+  .rec-sub{ font-size:11px; color:var(--muted); font-family:ui-monospace, monospace; margin-top:2px; }
+  .rec-add{
+    flex:none; background:var(--accent); color:#fff; border-radius:8px;
+    padding:7px 12px; font-size:13px; font-weight:700;
+  }
+
+  /* ---------- 세그먼트 토글 ---------- */
+  .seg{ display:flex; gap:4px; background:var(--surface-2); border-radius:9px; padding:3px; margin-bottom:10px; }
+  .seg-btn{ flex:1; background:transparent; color:var(--muted); padding:8px 4px; border-radius:7px; font-size:12.5px; font-weight:700; font-family:inherit; }
+  .seg-btn.active{ background:var(--accent); color:#fff; }
+
+  /* ---------- 끼니 배분 ---------- */
+  .split-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .split-grid label{ font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+  .split-sum{ font-size:12.5px; margin-top:8px; color:var(--muted); }
+  .split-sum b{ color:var(--text); }
+  .split-sum.bad b{ color:var(--warn); }
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{ transition:none !important; animation:none !important; }
+    html{ scroll-behavior:auto !important; }
+  }
 
   .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
 
@@ -353,13 +411,11 @@
     <p class="week-avg" id="backupReminder" style="margin-top:2px; color:var(--warn); display:none;"></p>
   </header>
 
-  <div class="main-tabs">
-    <button class="main-tab active" id="navToday">오늘</button>
-    <button class="main-tab" id="navHistory">히스토리</button>
-  </div>
-
   <!-- ============ TODAY VIEW ============ -->
   <div id="todayView">
+    <div id="panelToday"></div>
+    <div id="panelAdd" style="display:none;"></div>
+    <div id="panelSettings" style="display:none;"></div>
 
     <div class="date-nav">
       <button id="prevDayBtn" title="이전 날">‹</button>
@@ -403,7 +459,7 @@
         <p class="water-meta" id="waterMeta"></p>
         <div class="water-btns">
           <button id="waterMinus">− 한 컵</button>
-          <button id="waterPlus">＋ 한 컵 (250ml)</button>
+          <button id="waterPlus">＋ 한 컵</button>
         </div>
         <div id="waterHistory" style="margin-top:12px;"></div>
       </div>
@@ -504,8 +560,17 @@
       </div>
 
       <div id="customPane" style="display:none; margin-top:14px;">
+        <div class="seg" id="cModeSeg">
+          <button class="seg-btn active" data-cmode="serving">먹은 양 그대로</button>
+          <button class="seg-btn" data-cmode="per100">100g당 → 환산</button>
+        </div>
+        <p class="preset-macro" id="cModeHint" style="margin-top:0;">포장지에 적힌 "총 내용량" 기준 수치를 그대로 넣으세요.</p>
         <div class="custom-grid">
           <div class="full"><label>이름</label><input type="text" id="cName" placeholder="예: 회사 구내식당 점심"></div>
+          <div class="full" id="cGramWrap" style="display:none;">
+            <label>실제 먹은 양 (g)</label>
+            <input type="number" id="cGram" placeholder="예: 150" min="1" step="10">
+          </div>
           <div><label>칼로리 (kcal)</label><input type="number" id="cKcal" value="0"></div>
           <div><label>단백질 (g)</label><input type="number" id="cProtein" value="0"></div>
           <div><label>탄수화물 (g)</label><input type="number" id="cCarb" value="0"></div>
@@ -513,6 +578,7 @@
           <div><label>당류 (g)</label><input type="number" id="cSugar" value="0"></div>
           <div><label>나트륨 (mg)</label><input type="number" id="cSodium" value="0"></div>
         </div>
+        <p class="preset-macro" id="cCalcPreview" style="display:none;"></p>
         <label class="inline-check">
           <input type="checkbox" id="saveAsPreset">
           <span>이 음식을 목록에 등록해서 다음에 바로 고르기</span>
@@ -617,6 +683,39 @@
       </div>
     </div>
 
+    <div class="card fold collapsed" data-fold="mealsplit">
+      <button class="card-head"><span class="head-title">끼니별 목표 배분</span><span class="head-sub" id="splitHeadSub"></span><span class="chev">▾</span></button>
+      <div class="card-body">
+        <p class="preset-macro" style="margin-top:0;">하루 목표 칼로리를 끼니별로 나눠요. "끼니별 칼로리 분포" 카드에 목표 대비로 표시됩니다.</p>
+        <div class="split-grid">
+          <div><label>아침 (%)</label><input type="number" id="sp아침" min="0" max="100"></div>
+          <div><label>점심 (%)</label><input type="number" id="sp점심" min="0" max="100"></div>
+          <div><label>간식 (%)</label><input type="number" id="sp간식" min="0" max="100"></div>
+          <div><label>저녁 (%)</label><input type="number" id="sp저녁" min="0" max="100"></div>
+          <div><label>야식 (%)</label><input type="number" id="sp야식" min="0" max="100"></div>
+        </div>
+        <p class="split-sum" id="splitSum"></p>
+        <div class="btn-row">
+          <button class="btn-add" id="saveSplitBtn">배분 저장</button>
+          <button class="btn-add btn-secondary" id="resetSplitBtn">기본값</button>
+        </div>
+        <p class="save-status" id="splitStatus"></p>
+      </div>
+    </div>
+
+    <div class="card fold collapsed" data-fold="waterCfg">
+      <button class="card-head"><span class="head-title">물 목표 설정</span><span class="head-sub" id="waterCfgHeadSub"></span><span class="chev">▾</span></button>
+      <div class="card-body">
+        <div class="custom-grid">
+          <div><label>한 컵 용량 (ml)</label><input type="number" id="wcMl" min="50" step="10"></div>
+          <div><label>하루 목표 (컵)</label><input type="number" id="wcCups" min="1" max="30"></div>
+        </div>
+        <p class="preset-macro" id="wcPreview"></p>
+        <button class="btn-add" id="saveWaterCfgBtn">물 목표 저장</button>
+        <p class="save-status" id="wcStatus"></p>
+      </div>
+    </div>
+
     <div class="card fold collapsed" data-fold="backup">
       <button class="card-head"><span class="head-title">데이터 백업 / 복원</span><span class="chev">▾</span></button>
       <div class="card-body">
@@ -691,6 +790,23 @@
   </div>
 </div>
 
+<nav class="bottom-nav" id="bottomNav">
+  <div class="bnav-inner">
+    <button class="bnav-btn active" data-view="today" aria-label="오늘 기록">
+      <span class="bn-ico" aria-hidden="true">📋</span><span>오늘</span><span class="bn-badge" id="bnToday"></span>
+    </button>
+    <button class="bnav-btn" data-view="add" aria-label="음식 추가">
+      <span class="bn-ico" aria-hidden="true">➕</span><span>추가</span><span class="bn-badge" id="bnAdd"></span>
+    </button>
+    <button class="bnav-btn" data-view="history" aria-label="리포트">
+      <span class="bn-ico" aria-hidden="true">📈</span><span>리포트</span><span class="bn-badge"></span>
+    </button>
+    <button class="bnav-btn" data-view="settings" aria-label="설정">
+      <span class="bn-ico" aria-hidden="true">⚙️</span><span>설정</span><span class="bn-badge"></span>
+    </button>
+  </div>
+</nav>
+
 <script>
 (function(){
   const PRESETS = [
@@ -752,9 +868,19 @@
     { group:"구이류(가끔)", name:"목살 구이", unit:"100g", kcal:260, p:24.5, c:0, f:17.5, s:0, n:70 },
 
     // 소스 (저당/디핑) - 1큰술(15g) 기준
+    /* 소스 계량 기준: 1작은술 = 5g(5ml), 1큰술 = 15g(15ml), 1스푼(밥숟가락 수북) ≈ 10g
+       스푼으로 대충 뜨면 실제로는 표기보다 조금 더 들어가는 경우가 많아요. */
+    { group:"소스(저당·디핑)", name:"저당 데리야끼소스(비비드키친)", unit:"1작은술(5g)", kcal:2, p:0.2, c:1.3, f:0, s:0.2, n:103 },
     { group:"소스(저당·디핑)", name:"저당 데리야끼소스(비비드키친)", unit:"1큰술(15g)", kcal:6, p:0.5, c:3.8, f:0.1, s:0.5, n:309 },
+    { group:"소스(저당·디핑)", name:"저당 스위트칠리소스(비비드키친)", unit:"1작은술(5g)", kcal:2, p:0.1, c:0.9, f:0, s:0.1, n:52 },
     { group:"소스(저당·디핑)", name:"저당 스위트칠리소스(비비드키친)", unit:"1큰술(15g)", kcal:5, p:0.2, c:2.6, f:0, s:0.2, n:157 },
+    { group:"소스(저당·디핑)", name:"저칼로리 토마토케첩(비비드키친)", unit:"1작은술(5g)", kcal:2, p:0.1, c:0.8, f:0, s:0.2, n:49 },
     { group:"소스(저당·디핑)", name:"저칼로리 토마토케첩(비비드키친)", unit:"1큰술(15g)", kcal:5, p:0.3, c:2.4, f:0, s:0.5, n:147 },
+    { group:"소스(저당·디핑)", name:"저당 굴소스(비비드키친)", unit:"1작은술(5g)", kcal:4, p:0.2, c:0.8, f:0, s:0.2, n:157, est:true },
+    { group:"소스(저당·디핑)", name:"저당 굴소스(비비드키친)", unit:"1큰술(15g)", kcal:11, p:0.5, c:2.3, f:0, s:0.6, n:470, est:true },
+    { group:"소스(저당·디핑)", name:"진간장", unit:"1작은술(5g)", kcal:3, p:0.4, c:0.5, f:0, s:0.1, n:307, est:true },
+    { group:"소스(저당·디핑)", name:"진간장", unit:"1큰술(15g)", kcal:10, p:1.2, c:1.4, f:0, s:0.4, n:920, est:true },
+    { group:"소스(저당·디핑)", name:"하프 마요네즈(오뚜기)", unit:"1작은술(5g)", kcal:20, p:0.1, c:0.9, f:1.9, s:0.2, n:32 },
     { group:"소스(저당·디핑)", name:"하프 마요네즈(오뚜기)", unit:"1큰술(15g)", kcal:60, p:0.2, c:2.7, f:5.6, s:0.6, n:95 },
 
     // ===== 한식 (집밥·백반) — 1인분 기준 추정치 =====
@@ -910,8 +1036,13 @@
   let workouts = [];
   let mealCount = {};
 
-  const WATER_CUP_ML = 250;
-  const WATER_GOAL_CUPS = 8;
+  let WATER_CUP_ML = 250;
+  let WATER_GOAL_CUPS = 8;
+  const WATERCFG_KEY = "cu-tracker:waterCfg";
+
+  const DEFAULT_MEAL_SPLIT = { "아침":25, "점심":35, "간식":10, "저녁":25, "야식":5 };
+  const MEALSPLIT_KEY = "cu-tracker:mealSplit";
+  let mealSplit = { ...DEFAULT_MEAL_SPLIT };
 
   const $ = (id) => document.getElementById(id);
   const presetId = (p) => p.name + "|" + p.unit;
@@ -1103,7 +1234,7 @@
 
   function entryRowHtml(e, mode){
     const btns = mode === "today"
-      ? `<div class="btns"><button class="icon-btn edit" data-id="${e.id}" title="수정">✎</button><button class="icon-btn del" data-id="${e.id}" title="삭제">×</button></div>`
+      ? `<div class="btns"><button class="icon-btn edit" data-id="${e.id}" title="수정" aria-label="${esc(e.name)} 수정">✎</button><button class="icon-btn del" data-id="${e.id}" title="삭제" aria-label="${esc(e.name)} 삭제">×</button></div>`
       : "";
     return `
       <div class="entry">
@@ -1118,6 +1249,7 @@
 
   // ---------- TODAY VIEW ----------
   function renderToday(){
+    setTimeout(renderBudgetBar, 0);
     const t = totalsOf(entries);
     renderKcalRow(t, targets, $("kcalConsumed"), $("kcalRemain"));
     const wrap = $("barsWrap");
@@ -1139,34 +1271,55 @@
   const MEAL_ORDER = ["아침","점심","간식","저녁","야식"];
   const MEAL_COLORS = { "아침":"#8b5cf6", "점심":"#34d399", "간식":"#f5b942", "저녁":"#60a5fa", "야식":"#f87171" };
 
+  function mealTargetOf(m){
+    return Math.round(targets.kcal * (mealSplit[m] || 0) / 100);
+  }
+
   function renderMealBreakdown(t){
     const wrap = $("mealBreakdown");
     if (!wrap) return;
-    if (entries.length === 0 || t.kcal === 0){
-      wrap.innerHTML = `<div class="empty">아직 기록이 없어요.</div>`;
-      return;
-    }
     const byMeal = {};
     MEAL_ORDER.forEach(m=> byMeal[m] = 0);
     entries.forEach(e=>{ const m = e.meal || "기타"; byMeal[m] = (byMeal[m]||0) + e.kcal; });
 
     wrap.innerHTML = "";
+    let shown = 0;
     MEAL_ORDER.forEach(m=>{
       const kcal = byMeal[m] || 0;
-      if (kcal === 0) return;
-      const pct = (kcal / t.kcal) * 100;
+      const tgt = mealTargetOf(m);
+      if (kcal === 0 && tgt === 0) return;
+      shown++;
+      const pct = tgt > 0 ? Math.min((kcal / tgt) * 100, 100) : (t.kcal ? (kcal / t.kcal) * 100 : 0);
+      const over = tgt > 0 && kcal > tgt;
+      const diff = tgt - kcal;
+      const right = tgt > 0
+        ? `<b>${fmt(kcal)}</b> / ${tgt}kcal`
+        : `<b>${fmt(kcal)}kcal</b>${t.kcal ? ` (${fmt((kcal/t.kcal)*100)}%)` : ""}`;
+      const note = tgt > 0
+        ? (over ? `<span style="color:var(--over);">+${fmt(-diff)}</span>` : `<span style="color:var(--muted);">${fmt(diff)} 남음</span>`)
+        : "";
       const row = document.createElement("div");
       row.className = "bar-group";
       row.innerHTML = `
         <div class="bar-label">
-          <span>${m}</span>
-          <span class="num"><b>${fmt(kcal)}kcal</b> (${fmt(pct)}%)</span>
+          <span>${m} ${note}</span>
+          <span class="num">${right}</span>
         </div>
         <div class="bar-track">
-          <div class="bar-fill" style="width:${pct}%; background:${MEAL_COLORS[m]};"></div>
+          <div class="bar-fill" style="width:${pct}%; background:${over ? "var(--over)" : MEAL_COLORS[m]};"></div>
         </div>`;
       wrap.appendChild(row);
     });
+
+    const etc = byMeal["기타"] || 0;
+    if (etc > 0){
+      const row = document.createElement("div");
+      row.className = "bar-group";
+      row.innerHTML = `<div class="bar-label"><span>기타</span><span class="num"><b>${fmt(etc)}kcal</b></span></div>`;
+      wrap.appendChild(row);
+      shown++;
+    }
+    if (shown === 0) wrap.innerHTML = `<div class="empty">아직 기록이 없어요.</div>`;
   }
 
   async function storageSetSafe(key, value, label){
@@ -1215,6 +1368,55 @@
   async function saveUserPresets(){ return await storageSetSafe(USER_PRESETS_KEY, JSON.stringify(userPresets), "등록한 음식"); }
   async function saveWater(){ return await storageSetSafe(WATER_PREFIX + DATE_KEY, String(water), "물 섭취"); }
   async function saveRecent(){ return await storageSetSafe(RECENT_KEY, JSON.stringify(recentItems), "최근 목록"); }
+  async function saveWaterCfg(){ return await storageSetSafe(WATERCFG_KEY, JSON.stringify({ ml:WATER_CUP_ML, cups:WATER_GOAL_CUPS }), "물 목표"); }
+  async function saveMealSplit(){ return await storageSetSafe(MEALSPLIT_KEY, JSON.stringify(mealSplit), "끼니 배분"); }
+
+  async function loadSettings(){
+    try{
+      const r = await store.get(WATERCFG_KEY);
+      if (r && r.value){
+        const cfg = JSON.parse(r.value);
+        if (cfg.ml > 0) WATER_CUP_ML = cfg.ml;
+        if (cfg.cups > 0) WATER_GOAL_CUPS = cfg.cups;
+      }
+    }catch(err){}
+    try{
+      const r = await store.get(MEALSPLIT_KEY);
+      if (r && r.value){
+        const sp = JSON.parse(r.value);
+        MEAL_ORDER.forEach(m=>{ if (typeof sp[m] === "number") mealSplit[m] = sp[m]; });
+      }
+    }catch(err){}
+    fillSettingInputs();
+  }
+
+  function fillSettingInputs(){
+    if ($("wcMl")) $("wcMl").value = WATER_CUP_ML;
+    if ($("wcCups")) $("wcCups").value = WATER_GOAL_CUPS;
+    MEAL_ORDER.forEach(m=>{ const el = $("sp"+m); if (el) el.value = mealSplit[m] || 0; });
+    renderSplitSum();
+    renderWaterCfgPreview();
+  }
+
+  function renderSplitSum(){
+    const el = $("splitSum");
+    if (!el) return;
+    const sum = MEAL_ORDER.reduce((s,m)=> s + (Number($("sp"+m) && $("sp"+m).value) || 0), 0);
+    el.className = "split-sum" + (sum === 100 ? "" : " bad");
+    el.innerHTML = `합계 <b>${sum}%</b>` + (sum === 100 ? " — 딱 맞아요" : " — 100%가 되도록 맞춰주세요");
+    const sub = $("splitHeadSub");
+    if (sub) sub.textContent = MEAL_ORDER.map(m=> mealSplit[m]||0).join("/");
+  }
+
+  function renderWaterCfgPreview(){
+    const el = $("wcPreview");
+    if (!el) return;
+    const ml = Number($("wcMl") && $("wcMl").value) || WATER_CUP_ML;
+    const cups = Number($("wcCups") && $("wcCups").value) || WATER_GOAL_CUPS;
+    el.textContent = `하루 목표 ${(ml*cups).toLocaleString()}ml (${cups}컵 × ${ml}ml)`;
+    const sub = $("waterCfgHeadSub");
+    if (sub) sub.textContent = `${cups}컵 · ${ml}ml`;
+  }
 
   async function loadToday(){
     try{
@@ -1325,6 +1527,8 @@
     if (Array.isArray(foldedIds)){
       document.querySelectorAll(".card.fold").forEach(card=>{
         card.classList.toggle("collapsed", foldedIds.includes(card.dataset.fold));
+        const h = card.querySelector(".card-head");
+        if (h) h.setAttribute("aria-expanded", String(!card.classList.contains("collapsed")));
       });
     }
     updateFoldAllBtn();
@@ -1339,7 +1543,7 @@
   function updateFoldAllBtn(){
     const btn = $("foldAllBtn");
     if (!btn) return;
-    const cards = [...document.querySelectorAll("#todayView .card.fold")];
+    const cards = [...document.querySelectorAll("#panelToday .card.fold")];
     const allClosed = cards.length > 0 && cards.every(c=>c.classList.contains("collapsed"));
     btn.textContent = allClosed ? "모두 펼치기" : "모두 접기";
   }
@@ -1348,8 +1552,10 @@
     document.querySelectorAll(".card.fold").forEach(card=>{
       const head = card.querySelector(".card-head");
       if (!head) return;
+      head.setAttribute("aria-expanded", String(!card.classList.contains("collapsed")));
       head.addEventListener("click", ()=>{
         card.classList.toggle("collapsed");
+        head.setAttribute("aria-expanded", String(!card.classList.contains("collapsed")));
         updateFoldAllBtn();
         saveFoldState();
       });
@@ -1357,7 +1563,7 @@
     const btn = $("foldAllBtn");
     if (btn){
       btn.addEventListener("click", ()=>{
-        const cards = [...document.querySelectorAll("#todayView .card.fold")];
+        const cards = [...document.querySelectorAll("#panelToday .card.fold")];
         const allClosed = cards.every(c=>c.classList.contains("collapsed"));
         cards.forEach(c=> c.classList.toggle("collapsed", !allClosed));
         updateFoldAllBtn();
@@ -1418,7 +1624,9 @@
       });
     });
     const ml = water * WATER_CUP_ML;
-    $("waterMeta").innerHTML = `<b>${ml}ml</b> / ${WATER_GOAL_CUPS * WATER_CUP_ML}ml (${water}컵)`;
+    $("waterMeta").innerHTML = `<b>${ml}ml</b> / ${WATER_GOAL_CUPS * WATER_CUP_ML}ml (${water}컵 · 한 컵 ${WATER_CUP_ML}ml)`;
+    const wp = $("waterPlus");
+    if (wp) wp.textContent = `＋ 한 컵 (${WATER_CUP_ML}ml)`;
     const sub = $("waterHeadSub");
     if (sub) sub.textContent = water > 0 ? `${ml}ml` : "";
     renderWaterHistory();
@@ -1465,6 +1673,135 @@
   }
 
   /* ---------- 최근 먹은 것 ---------- */
+  /* ---------- 남은 예산 바 + 추천 ---------- */
+  function renderBudgetBar(){
+    const wrap = $("budgetBar");
+    if (!wrap) return;
+    const t = totalsOf(entries);
+    const remK = targets.kcal - t.kcal;
+    const remP = targets.p - t.p;
+    const remC = targets.c - t.c;
+    const remF = targets.f - t.f;
+    const over = remK < 0;
+    wrap.innerHTML = `
+      <div class="bb-top">
+        <span class="bb-lab">${isToday() ? "오늘" : "이 날"} 남은 칼로리</span>
+        <span class="bb-val num ${over ? "over" : ""}">${over ? "+" + fmt(-remK) : fmt(remK)}<span style="font-size:13px; font-weight:600; color:var(--muted);"> kcal</span></span>
+      </div>
+      <div class="bb-macros num">
+        <span>P <b>${fmt(Math.max(remP,0))}g</b></span>
+        <span>C <b>${fmt(Math.max(remC,0))}g</b></span>
+        <span>F <b>${fmt(Math.max(remF,0))}g</b></span>
+        <span style="margin-left:auto; color:var(--muted);">${currentMeal}</span>
+      </div>
+      <button class="bb-btn" id="recBtn">남은 예산으로 뭐 먹을지 추천</button>
+      <div id="recResults"></div>`;
+    $("recBtn").addEventListener("click", renderRecommendations);
+    const badge = $("bnToday");
+    if (badge) badge.textContent = over ? `+${Math.round(-remK)}` : `${Math.round(remK)}`;
+    const badge2 = $("bnAdd");
+    if (badge2) badge2.textContent = "";
+  }
+
+  function renderRecommendations(){
+    const box = $("recResults");
+    if (!box) return;
+    const t = totalsOf(entries);
+    const dayK = targets.kcal - t.kcal;
+
+    // 끼니 배분이 있으면 "이번 끼니에 남은 양"을 기준으로 (하루치를 한 끼에 몰아 추천하지 않게)
+    const mTgt = mealTargetOf(currentMeal);
+    const mEaten = entries.filter(e=> (e.meal || "") === currentMeal).reduce((sum,e)=> sum + e.kcal, 0);
+    const mealK = mTgt > 0 ? mTgt - mEaten : dayK;
+    const remK = Math.max(0, Math.min(dayK, mealK));
+    const basis = (mTgt > 0 && mealK < dayK) ? `${currentMeal} 기준` : "오늘 남은 양 기준";
+
+    // 단백질은 하루 기준으로 보되, 한 끼가 감당할 몫만
+    const dayP = Math.max(targets.p - t.p, 0);
+    const remP = mTgt > 0 ? dayP * Math.min(1, (mealSplit[currentMeal] || 0) / 100 * 2.2) : dayP;
+
+    if (remK < 60){
+      box.innerHTML = `<p class="analysis-note" style="margin-top:10px;">${basis} 남은 칼로리가 거의 없어요. 끼니를 바꾸거나, 물·채소 정도가 무난합니다.</p>`;
+      return;
+    }
+
+    const pool = allPresets().filter(p=>
+      p.group !== "대충 기록" && p.kcal > 20 && p.kcal <= remK
+    );
+    if (pool.length === 0){
+      box.innerHTML = `<p class="analysis-note" style="margin-top:10px;">남은 칼로리 안에 들어가는 항목이 목록에 없어요.</p>`;
+      return;
+    }
+
+    // "닭가슴살 (저녁 · 하림)" 같은 세부 그룹을 대분류로 묶기
+    const kindOf = (x) => String(x.group || "").split(/[\s(·]/)[0];
+
+    const score = (kcal, prot) => {
+      if (kcal > remK) return -1;
+      const pFill = remP > 0 ? Math.min(prot / remP, 1.15) : 0.7;
+      const kUse = kcal / remK;
+      return pFill * 100 - Math.abs(kUse - 0.85) * 45;
+    };
+
+    const cands = [];
+    pool.forEach(p=> cands.push({ items:[p], kcal:p.kcal, prot:p.p }));
+
+    // 조합은 단백질 밀도 상위 항목끼리만 (계산량 제한)
+    const dense = pool.slice()
+      .sort((a,b)=> (b.p / Math.max(b.kcal,1)) - (a.p / Math.max(a.kcal,1)))
+      .slice(0, 34);
+    for (let i=0;i<dense.length;i++){
+      for (let j=i+1;j<dense.length;j++){
+        const a = dense[i], b = dense[j];
+        if (a.name === b.name) continue;
+        if (kindOf(a) === kindOf(b)) continue;   // 같은 종류 두 개 붙이는 조합은 제외
+        const kc = a.kcal + b.kcal;
+        if (kc > remK) continue;
+        cands.push({ items:[a,b], kcal:kc, prot:a.p + b.p });
+      }
+    }
+
+    cands.forEach(c=> c.sc = score(c.kcal, c.prot));
+    cands.sort((a,b)=> b.sc - a.sc);
+
+    // 같은 음식이 여러 추천에 반복되지 않게 다양성 제한
+    const seen = new Set();
+    const nameUse = {};
+    const picks = [];
+    for (const c of cands){
+      const key = c.items.map(x=> x.name).sort().join("|");
+      if (seen.has(key)) continue;
+      if (c.items.some(x=> (nameUse[x.name] || 0) >= 1)) continue;
+      seen.add(key);
+      c.items.forEach(x=>{ nameUse[x.name] = (nameUse[x.name] || 0) + 1; });
+      picks.push(c);
+      if (picks.length >= 4) break;
+    }
+
+    box.innerHTML = `<p class="section-title" style="margin:14px 0 2px;">${basis} — 남은 ${fmt(remK)}kcal · 단백질 ${fmt(remP)}g</p>`;
+    picks.forEach((c, idx)=>{
+      const row = document.createElement("div");
+      row.className = "rec-row";
+      row.innerHTML = `
+        <div>
+          <div class="rec-name">${c.items.map(x=> esc(x.name) + ` <span style="color:var(--muted);">${esc(x.unit)}</span>`).join(" + ")}</div>
+          <div class="rec-sub">${fmt(c.kcal)}kcal · P ${fmt(c.prot)}g · 남는 칼로리 ${fmt(remK - c.kcal)}</div>
+        </div>`;
+      const btn = document.createElement("button");
+      btn.className = "rec-add";
+      btn.textContent = "담기";
+      btn.setAttribute("aria-label", "이 조합을 오늘 기록에 추가");
+      btn.addEventListener("click", ()=>{
+        c.items.forEach(x=> quickAdd(x, 1));
+        renderBudgetBar();
+      });
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+    box.insertAdjacentHTML("beforeend",
+      `<p class="analysis-note" style="margin-top:8px;">목록에 있는 음식만 조합했어요. 참고용이고, 실제로 먹고 싶은 걸 고르는 게 우선입니다.</p>`);
+  }
+
   function pushRecent(entry){
     const key = entry.name;
     recentItems = recentItems.filter(r=> r.name !== key);
@@ -2402,6 +2739,30 @@
 
     $("weeklyHeadSub").textContent = `${fmt(avgKcal)}kcal · ${gPerKg.toFixed(1)}g/kg`;
 
+    const shareBtn = document.createElement("button");
+    shareBtn.className = "btn-add btn-secondary";
+    shareBtn.textContent = "📤 이번 주 요약 공유하기";
+    shareBtn.addEventListener("click", async ()=>{
+      const lines = [
+        `📊 최근 7일 식단 요약`,
+        `평균 ${fmt(avgKcal)}kcal (목표 ${targets.kcal}kcal)`,
+        `평균 단백질 ${fmt(avgP)}g · 체중당 ${gPerKg.toFixed(1)}g/kg`,
+        `목표 안에 든 날 ${onTarget}/${logged7.length}일 · 단백질 달성 ${proteinHit}일`,
+      ];
+      if (avgWater) lines.push(`평균 물 ${fmt(avgWater)}ml (${waterDays.length}일 기록)`);
+      const text = lines.join("\n");
+      try{
+        if (navigator.share){
+          await navigator.share({ title:"식단 주간 요약", text });
+        } else {
+          await navigator.clipboard.writeText(text);
+          shareBtn.textContent = "✓ 클립보드에 복사했어요";
+          setTimeout(()=>{ shareBtn.textContent = "📤 이번 주 요약 공유하기"; }, 2500);
+        }
+      }catch(err){ /* 사용자가 취소한 경우 포함 */ }
+    });
+    wrap.appendChild(shareBtn);
+
     // 요일별 패턴 (최근 4주)
     const DOW = ["일","월","화","수","목","금","토"];
     const byDow = DOW.map((_,i)=>{
@@ -2895,6 +3256,26 @@
   }
 
   // ---------- NAV ----------
+  let cMode = "serving";
+
+  function customFactor(){
+    if (cMode !== "per100") return 1;
+    const g = Number($("cGram") && $("cGram").value) || 0;
+    return g > 0 ? g / 100 : 0;
+  }
+
+  function renderCustomPreview(){
+    const el = $("cCalcPreview");
+    if (!el) return;
+    if (cMode !== "per100"){ el.style.display = "none"; return; }
+    const g = Number($("cGram").value) || 0;
+    el.style.display = "";
+    if (!g){ el.textContent = "실제 먹은 양(g)을 입력하면 환산 결과가 여기에 나와요."; return; }
+    const k = customFactor();
+    const v = (id)=> Math.round(((Number($(id).value)||0) * k) * 10) / 10;
+    el.innerHTML = `<b style="color:var(--text);">${g}g 기준 → ${v("cKcal")}kcal</b> · P ${v("cProtein")}g · C ${v("cCarb")}g · F ${v("cFat")}g · 당 ${v("cSugar")}g · Na ${v("cSodium")}mg`;
+  }
+
   function showPane(which){
     const map = { preset:["tabPreset","presetPane"], rough:["tabRough","roughPane"], custom:["tabCustom","customPane"] };
     Object.keys(map).forEach(k=>{
@@ -2904,13 +3285,56 @@
     });
   }
 
+  /* ---------- 탭별 패널 구성 (기존 카드를 옮겨 담기) ---------- */
+  const PANEL_LAYOUT = {
+    panelToday:    [".date-nav", "#pastBanner", ".fold-all-row", "fold:summary", "fold:weight", "fold:water", "fold:breakdown", "fold:log", "fold:workout"],
+    panelAdd:      ["#budgetBar", "fold:combo", "fold:add"],
+    panelSettings: ["fold:targets", "fold:mealsplit", "fold:waterCfg", "fold:backup", ".footer-row"],
+  };
+  const FOLD_VIEW = {};
+
+  function buildPanels(){
+    const budget = document.createElement("div");
+    budget.className = "budget-bar";
+    budget.id = "budgetBar";
+    $("todayView").appendChild(budget);
+
+    Object.keys(PANEL_LAYOUT).forEach(panelId=>{
+      const panel = $(panelId);
+      const view = panelId === "panelToday" ? "today" : (panelId === "panelAdd" ? "add" : "settings");
+      PANEL_LAYOUT[panelId].forEach(sel=>{
+        let el;
+        if (sel.startsWith("fold:")){
+          const f = sel.slice(5);
+          el = document.querySelector(`.card.fold[data-fold="${f}"]`);
+          FOLD_VIEW[f] = view;
+        } else {
+          el = document.querySelector("#todayView " + sel);
+        }
+        if (el) panel.appendChild(el);
+      });
+    });
+  }
+
+  let currentView = "today";
+
   function showView(view){
-    $("todayView").style.display = view === "today" ? "block" : "none";
-    $("historyView").style.display = view === "history" ? "block" : "none";
+    currentView = view;
+    const isHist = view === "history";
+    $("todayView").style.display = isHist ? "none" : "block";
+    $("historyView").style.display = isHist ? "block" : "none";
     $("dayDetailView").style.display = "none";
-    $("navToday").classList.toggle("active", view === "today");
-    $("navHistory").classList.toggle("active", view === "history");
-    if (view === "history") loadHistory();
+    $("panelToday").style.display = view === "today" ? "" : "none";
+    $("panelAdd").style.display = view === "add" ? "" : "none";
+    $("panelSettings").style.display = view === "settings" ? "" : "none";
+    document.querySelectorAll(".bnav-btn").forEach(b=>{
+      const on = b.dataset.view === view;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-current", on ? "page" : "false");
+    });
+    if (isHist) loadHistory();
+    if (view === "add") renderBudgetBar();
+    if (view === "settings") fillSettingInputs();
   }
 
   function initEvents(){
@@ -2993,13 +3417,23 @@
     });
 
     $("addCustomBtn").addEventListener("click", ()=>{
-      const name = $("cName").value.trim() || "직접 입력 항목";
-      const kcal = Number($("cKcal").value)||0;
-      const p = Number($("cProtein").value)||0;
-      const c = Number($("cCarb").value)||0;
-      const f = Number($("cFat").value)||0;
-      const s = Number($("cSugar").value)||0;
-      const n = Number($("cSodium").value)||0;
+      const rawName = $("cName").value.trim() || "직접 입력 항목";
+      const per100 = cMode === "per100";
+      const grams = Number($("cGram").value) || 0;
+      if (per100 && !grams){
+        setStatus("customStatus", false, "⚠️ 실제 먹은 양(g)을 입력해주세요.");
+        $("cGram").focus();
+        return;
+      }
+      const k = per100 ? grams / 100 : 1;
+      const rd = (v)=> Math.round(v * 10) / 10;
+      const name = per100 ? `${rawName} ${grams}g` : rawName;
+      const kcal = rd((Number($("cKcal").value)||0) * k);
+      const p = rd((Number($("cProtein").value)||0) * k);
+      const c = rd((Number($("cCarb").value)||0) * k);
+      const f = rd((Number($("cFat").value)||0) * k);
+      const s = rd((Number($("cSugar").value)||0) * k);
+      const n = rd((Number($("cSodium").value)||0) * k);
 
       if (editingId){
         const idx = entries.findIndex(e=>e.id===editingId);
@@ -3013,14 +3447,20 @@
       } else {
         addEntryAndSave({ name, kcal, p, c, f, s, n });
         if ($("saveAsPreset").checked){
-          const unit = "1인분";
-          const exists = userPresets.some(x=> x.name===name && x.unit===unit);
+          // 100g당 모드로 넣었으면 100g 단위로 등록 → 다음엔 그램만 바꿔서 쓸 수 있어요
+          const unit = per100 ? "100g" : "1인분";
+          const pn = per100 ? rawName : name;
+          const pv = per100
+            ? { kcal:Number($("cKcal").value)||0, p:Number($("cProtein").value)||0, c:Number($("cCarb").value)||0,
+                f:Number($("cFat").value)||0, s:Number($("cSugar").value)||0, n:Number($("cSodium").value)||0 }
+            : { kcal, p, c, f, s, n };
+          const exists = userPresets.some(x=> x.name===pn && x.unit===unit);
           if (!exists){
-            userPresets.push({ group:"내가 등록한 음식", name, unit, kcal, p, c, f, s, n });
+            userPresets.push({ group:"내가 등록한 음식", name:pn, unit, ...pv });
             saveUserPresets();
             renderUserPresetList();
             buildPresetSelect();
-            setStatus("customStatus", true, `✓ "${name}"을(를) 목록에 등록했어요.`);
+            setStatus("customStatus", true, `✓ "${pn}"을(를) ${unit} 기준으로 목록에 등록했어요.`);
           } else {
             setStatus("customStatus", true, "이미 등록된 음식이에요.");
           }
@@ -3028,10 +3468,29 @@
         }
         $("cName").value=""; $("cKcal").value=0; $("cProtein").value=0; $("cCarb").value=0;
         $("cFat").value=0; $("cSugar").value=0; $("cSodium").value=0;
+        if ($("cGram")) $("cGram").value = "";
+        renderCustomPreview();
       }
     });
 
     $("cancelEditBtn").addEventListener("click", cancelEdit);
+
+    // ---------- 영양성분표 100g당 → 실제 섭취량 환산 ----------
+    $("cModeSeg").querySelectorAll(".seg-btn").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        cMode = btn.dataset.cmode;
+        $("cModeSeg").querySelectorAll(".seg-btn").forEach(b=> b.classList.toggle("active", b === btn));
+        $("cGramWrap").style.display = cMode === "per100" ? "" : "none";
+        $("cModeHint").textContent = cMode === "per100"
+          ? "포장지의 \"100g당\" 칸 수치를 넣고, 실제로 먹은 g수를 적으면 자동으로 계산돼요."
+          : "포장지에 적힌 \"총 내용량\" 기준 수치를 그대로 넣으세요.";
+        renderCustomPreview();
+      });
+    });
+    ["cGram","cKcal","cProtein","cCarb","cFat","cSugar","cSodium"].forEach(id=>{
+      const el = $(id);
+      if (el) el.addEventListener("input", renderCustomPreview);
+    });
 
     $("tabPreset").addEventListener("click", ()=> showPane("preset"));
     $("tabRough").addEventListener("click", ()=> showPane("rough"));
@@ -3116,14 +3575,63 @@
       refreshWeekAvg();
     });
 
-    $("navToday").addEventListener("click", ()=> showView("today"));
-    $("navHistory").addEventListener("click", ()=> showView("history"));
+    document.querySelectorAll(".bnav-btn").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        showView(btn.dataset.view);
+        window.scrollTo({ top:0, behavior:"auto" });
+      });
+    });
     $("backFromDetail").addEventListener("click", ()=> showView("history"));
     $("editThisDayBtn").addEventListener("click", ()=>{
       if (!detailDateKey) return;
       showView("today");
       setActiveDate(new Date(detailDateKey + "T00:00:00"));
       window.scrollTo({top:0, behavior:"smooth"});
+    });
+
+    // ---------- 끼니 배분 ----------
+    MEAL_ORDER.forEach(m=>{
+      const el = $("sp"+m);
+      if (el) el.addEventListener("input", renderSplitSum);
+    });
+    $("saveSplitBtn").addEventListener("click", async ()=>{
+      const next = {};
+      let sum = 0;
+      MEAL_ORDER.forEach(m=>{ const v = Math.max(0, Number($("sp"+m).value)||0); next[m] = v; sum += v; });
+      if (sum !== 100){
+        setStatus("splitStatus", false, `⚠️ 합계가 ${sum}%예요. 100%로 맞춰주세요.`);
+        return;
+      }
+      mealSplit = next;
+      const ok = await saveMealSplit();
+      setStatus("splitStatus", !!ok, ok ? `✓ ${nowTime()} 저장 완료` : "저장 실패");
+      renderSplitSum();
+      renderToday();
+    });
+    $("resetSplitBtn").addEventListener("click", ()=>{
+      MEAL_ORDER.forEach(m=> $("sp"+m).value = DEFAULT_MEAL_SPLIT[m]);
+      renderSplitSum();
+      setStatus("splitStatus", true, "기본값으로 채웠어요. \"배분 저장\"을 눌러주세요.");
+    });
+
+    // ---------- 물 목표 ----------
+    ["wcMl","wcCups"].forEach(id=>{
+      const el = $(id);
+      if (el) el.addEventListener("input", renderWaterCfgPreview);
+    });
+    $("saveWaterCfgBtn").addEventListener("click", async ()=>{
+      const ml = Number($("wcMl").value)||0;
+      const cups = Number($("wcCups").value)||0;
+      if (ml < 50 || cups < 1){
+        setStatus("wcStatus", false, "⚠️ 한 컵 50ml 이상, 목표 1컵 이상으로 넣어주세요.");
+        return;
+      }
+      WATER_CUP_ML = ml;
+      WATER_GOAL_CUPS = cups;
+      const ok = await saveWaterCfg();
+      setStatus("wcStatus", !!ok, ok ? `✓ ${nowTime()} 저장 완료` : "저장 실패");
+      renderWaterCfgPreview();
+      renderWater();
     });
 
     $("exportBtn").addEventListener("click", exportAllData);
@@ -3144,12 +3652,15 @@
   function openCard(foldId){
     const card = document.querySelector(`.card.fold[data-fold="${foldId}"]`);
     if (!card) return null;
+    const v = FOLD_VIEW[foldId];
+    if (v && v !== currentView) showView(v);
     if (card.classList.contains("collapsed")){
       card.classList.remove("collapsed");
       updateFoldAllBtn();
       saveFoldState();
     }
-    setTimeout(()=> card.scrollIntoView({ behavior:"smooth", block:"start" }), 60);
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setTimeout(()=> card.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block:"start" }), 60);
     return card;
   }
 
@@ -3208,12 +3719,16 @@
   }
 
   renderDate();
+  buildPanels();
   buildPresetSelect();
   initEvents();
   initFolds();
   checkStorageMode();
   loadFoldState();
-  loadToday().then(handleShortcut);
+  loadSettings()
+    .then(loadToday)
+    .then(()=>{ renderBudgetBar(); })
+    .then(handleShortcut);
 })();
 
 /* 서비스워커 등록 (https 주소에서만 동작, 파일로 열면 조용히 건너뜀) */
