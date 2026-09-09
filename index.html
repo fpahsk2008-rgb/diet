@@ -237,6 +237,53 @@
   .mini-list-item{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
   .mini-list-item:last-child{ border-bottom:none; }
   .mini-list-item .mi-sub{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+
+  /* 검색 즉시 목록 */
+  .result-list{ max-height:280px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .result-list .rl-group{
+    font-size:11px; font-weight:700; color:var(--accent);
+    padding:8px 2px 4px; letter-spacing:.02em;
+  }
+  .result-item{
+    width:100%; display:flex; align-items:center; gap:10px; text-align:left;
+    background:transparent; color:var(--text); padding:10px 8px;
+    border-bottom:1px solid var(--border); border-radius:8px;
+  }
+  .result-item:active{ background:var(--surface-2); }
+  .result-item.sel{ background:var(--accent-dim); }
+  .result-item .ri-main{ flex:1; min-width:0; }
+  .result-item .ri-name{ font-size:13.5px; font-weight:600; }
+  .result-item .ri-name .ri-unit{ color:var(--muted); font-weight:400; }
+  .result-item .ri-sub{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .result-item .ri-kcal{ font-size:13px; font-weight:700; flex:none; }
+  .result-item .ri-quick{
+    flex:none; background:var(--accent); color:#fff; border-radius:7px;
+    padding:6px 10px; font-size:12px; font-weight:700;
+  }
+  .result-item .ri-badge{ font-size:10px; color:var(--warn); margin-left:4px; }
+  .result-empty{ color:var(--muted); font-size:12.5px; text-align:center; padding:16px 0; }
+
+  .selected-head{ display:flex; align-items:center; gap:8px; margin:12px 0 4px; }
+  .selected-head .sel-name{ flex:1; font-size:14px; font-weight:700; }
+  #selectedBox{ border-top:1px solid var(--border); margin-top:6px; }
+
+  /* 대충 기록 */
+  .rough-group{ margin-bottom:14px; }
+  .rough-group:last-child{ margin-bottom:0; }
+  .rough-title{ font-size:12.5px; font-weight:700; margin:0 0 6px; }
+  .rough-row{ display:flex; gap:6px; }
+  .rough-btn{
+    flex:1; background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    border-radius:9px; padding:9px 4px; font-size:12px; font-weight:600; line-height:1.35;
+  }
+  .rough-btn:active{ background:var(--accent-dim); }
+  .rough-btn small{ display:block; color:var(--muted); font-size:10.5px; font-weight:400; margin-top:2px; }
+
+  /* 운동 */
+  .wo-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .wo-item:last-child{ border-bottom:none; }
+  .wo-item .wo-name{ font-size:13.5px; font-weight:600; }
+  .wo-item .wo-sub{ font-size:11.5px; color:var(--muted); margin-top:2px; }
 </style>
 </head>
 <body>
@@ -373,7 +420,8 @@
 
       <p class="section-title">직접 고르기</p>
       <div class="toggle-row">
-        <button class="toggle-btn active" id="tabPreset">CU / 자주 먹는 음식</button>
+        <button class="toggle-btn active" id="tabPreset">목록에서 찾기</button>
+        <button class="toggle-btn" id="tabRough">대충 기록</button>
         <button class="toggle-btn" id="tabCustom">직접 입력</button>
       </div>
 
@@ -387,25 +435,34 @@
       </div>
 
       <div id="presetPane" style="margin-top:14px;">
-        <input type="text" id="presetSearch" placeholder="검색 (예: 닭가슴살, 케첩...)" style="margin-bottom:8px;">
-        <div class="row">
-          <select id="presetSelect"></select>
-          <button class="star-toggle" id="favToggleBtn" title="즐겨찾기">☆</button>
-        </div>
-        <div class="preset-macro" id="presetMacroPreview"></div>
-        <div class="row qty">
-          <div id="gramBox" style="display:none;">
-            <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">그램 직접 입력 (g)</label>
-            <input type="number" id="presetGram" placeholder="예: 173" min="1" step="1">
+        <input type="text" id="presetSearch" placeholder="검색 (예: 닭가슴살, 김밥, 치킨...)" style="margin-bottom:8px;">
+        <div id="presetResults" class="result-list"></div>
+
+        <div id="selectedBox" style="display:none;">
+          <div class="selected-head">
+            <div class="sel-name" id="selName">-</div>
+            <button class="star-toggle" id="favToggleBtn" title="즐겨찾기">☆</button>
           </div>
-          <div style="flex:1" id="gramSpacer"></div>
-          <div class="qty-box">
-            <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">수량</label>
-            <input type="number" id="presetQty" value="1" min="0.5" step="0.5">
+          <div class="preset-macro" id="presetMacroPreview"></div>
+          <div class="row qty">
+            <div id="gramBox" style="display:none;">
+              <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">그램 직접 입력 (g)</label>
+              <input type="number" id="presetGram" placeholder="예: 173" min="1" step="1">
+            </div>
+            <div style="flex:1" id="gramSpacer"></div>
+            <div class="qty-box">
+              <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">수량</label>
+              <input type="number" id="presetQty" value="1" min="0.5" step="0.5">
+            </div>
           </div>
+          <p class="gram-hint" id="gramHint"></p>
+          <button class="btn-add" id="addPresetBtn">추가하기</button>
         </div>
-        <p class="gram-hint" id="gramHint"></p>
-        <button class="btn-add" id="addPresetBtn">추가하기</button>
+      </div>
+
+      <div id="roughPane" style="display:none; margin-top:14px;">
+        <p class="preset-macro" style="margin-top:0;">정확히 모를 때 대충이라도 남겨두세요. 안 적는 것보다 훨씬 낫습니다. 나중에 수정할 수 있어요.</p>
+        <div id="roughList"></div>
       </div>
 
       <div id="customPane" style="display:none; margin-top:14px;">
@@ -446,6 +503,30 @@
         <div id="logList"><div class="loading">불러오는 중...</div></div>
         <button class="btn-add" id="saveDayBtn">오늘 식단 저장</button>
         <p class="save-status" id="daySaveStatus"></p>
+      </div>
+    </div>
+
+    <div class="card fold collapsed" data-fold="workout">
+      <button class="card-head"><span class="head-title">운동 기록</span><span class="head-sub" id="workoutHeadSub"></span><span class="chev">▾</span></button>
+      <div class="card-body">
+        <div class="chip-row" id="workoutQuickRow"></div>
+        <div class="row" style="margin-top:4px;">
+          <select id="woType">
+            <option value="웨이트">웨이트</option>
+            <option value="유산소">유산소</option>
+            <option value="걷기">걷기</option>
+            <option value="구기·스포츠">구기·스포츠</option>
+            <option value="스트레칭·요가">스트레칭·요가</option>
+            <option value="기타">기타</option>
+          </select>
+          <div class="qty-box">
+            <input type="number" id="woMin" placeholder="분" min="1" step="5">
+          </div>
+        </div>
+        <input type="text" id="woMemo" placeholder="메모 (예: 하체, 벤치 60kg 5x5)" style="margin-top:8px;">
+        <button class="btn-add" id="addWorkoutBtn">운동 추가</button>
+        <div id="workoutList" style="margin-top:10px;"></div>
+        <p class="preset-macro" style="margin-top:10px;">운동은 칼로리 예산에 더하지 않아요. 소모량 추정치는 실제보다 부풀려지는 경우가 많고, 활동량은 이미 목표 계산에 반영돼 있어서 이중으로 세면 적자가 사라집니다.</p>
       </div>
     </div>
 
@@ -621,6 +702,84 @@
     { group:"소스(저당·디핑)", name:"저당 스위트칠리소스(비비드키친)", unit:"1큰술(15g)", kcal:5, p:0.2, c:2.6, f:0, s:0.2, n:157 },
     { group:"소스(저당·디핑)", name:"저칼로리 토마토케첩(비비드키친)", unit:"1큰술(15g)", kcal:5, p:0.3, c:2.4, f:0, s:0.5, n:147 },
     { group:"소스(저당·디핑)", name:"하프 마요네즈(오뚜기)", unit:"1큰술(15g)", kcal:60, p:0.2, c:2.7, f:5.6, s:0.6, n:95 },
+
+    // ===== 한식 (집밥·백반) — 1인분 기준 추정치 =====
+    { group:"한식·집밥", name:"김치찌개", unit:"1인분", kcal:290, p:18, c:12, f:18, s:4, n:1600, est:true },
+    { group:"한식·집밥", name:"된장찌개", unit:"1인분", kcal:180, p:13, c:12, f:8, s:4, n:1500, est:true },
+    { group:"한식·집밥", name:"순두부찌개", unit:"1인분", kcal:250, p:17, c:11, f:15, s:4, n:1500, est:true },
+    { group:"한식·집밥", name:"부대찌개", unit:"1인분", kcal:520, p:26, c:38, f:29, s:8, n:2300, est:true },
+    { group:"한식·집밥", name:"미역국", unit:"1인분", kcal:110, p:9, c:5, f:6, s:1, n:900, est:true },
+    { group:"한식·집밥", name:"북엇국", unit:"1인분", kcal:100, p:12, c:5, f:3, s:1, n:1000, est:true },
+    { group:"한식·집밥", name:"계란찜", unit:"1인분", kcal:150, p:12, c:3, f:10, s:1, n:600, est:true },
+    { group:"한식·집밥", name:"제육볶음", unit:"1인분", kcal:520, p:30, c:20, f:35, s:12, n:1400, est:true },
+    { group:"한식·집밥", name:"불고기", unit:"1인분", kcal:400, p:30, c:18, f:22, s:12, n:1200, est:true },
+    { group:"한식·집밥", name:"닭볶음탕", unit:"1인분", kcal:480, p:35, c:25, f:26, s:9, n:1500, est:true },
+    { group:"한식·집밥", name:"고등어구이", unit:"1토막", kcal:230, p:21, c:0, f:16, s:0, n:600, est:true },
+    { group:"한식·집밥", name:"김치", unit:"1접시(50g)", kcal:15, p:1, c:2.4, f:0.2, s:1.2, n:450, est:true },
+    { group:"한식·집밥", name:"나물 반찬", unit:"1접시(60g)", kcal:50, p:2, c:4, f:3, s:1, n:250, est:true },
+    { group:"한식·집밥", name:"김(조미)", unit:"1봉(5g)", kcal:25, p:1.5, c:1, f:1.8, s:0, n:120, est:true },
+
+    // ===== 외식 (식당) =====
+    { group:"외식·식당", name:"김치찌개 백반", unit:"1인분", kcal:700, p:28, c:85, f:26, s:6, n:2400, est:true },
+    { group:"외식·식당", name:"제육덮밥", unit:"1인분", kcal:780, p:32, c:95, f:29, s:14, n:1900, est:true },
+    { group:"외식·식당", name:"비빔밥", unit:"1인분", kcal:600, p:20, c:90, f:16, s:8, n:1300, est:true },
+    { group:"외식·식당", name:"돼지국밥", unit:"1인분", kcal:620, p:35, c:65, f:22, s:3, n:2200, est:true },
+    { group:"외식·식당", name:"순대국밥", unit:"1인분", kcal:600, p:32, c:62, f:23, s:3, n:2300, est:true },
+    { group:"외식·식당", name:"설렁탕", unit:"1인분", kcal:520, p:32, c:58, f:16, s:2, n:2000, est:true },
+    { group:"외식·식당", name:"삼계탕", unit:"1인분", kcal:800, p:60, c:50, f:38, s:2, n:1600, est:true },
+    { group:"외식·식당", name:"냉면(물)", unit:"1인분", kcal:550, p:20, c:95, f:8, s:12, n:2100, est:true },
+    { group:"외식·식당", name:"냉면(비빔)", unit:"1인분", kcal:600, p:20, c:105, f:9, s:20, n:2200, est:true },
+    { group:"외식·식당", name:"칼국수", unit:"1인분", kcal:550, p:20, c:85, f:12, s:5, n:2200, est:true },
+    { group:"외식·식당", name:"김밥(기본)", unit:"1줄", kcal:480, p:14, c:75, f:13, s:5, n:900, est:true },
+    { group:"외식·식당", name:"참치김밥", unit:"1줄", kcal:560, p:18, c:75, f:20, s:5, n:1000, est:true },
+    { group:"외식·식당", name:"라면", unit:"1인분", kcal:500, p:11, c:75, f:17, s:5, n:1900, est:true },
+    { group:"외식·식당", name:"떡볶이", unit:"1인분", kcal:520, p:10, c:95, f:11, s:22, n:1600, est:true },
+    { group:"외식·식당", name:"돈까스", unit:"1인분", kcal:900, p:38, c:80, f:48, s:8, n:1700, est:true },
+    { group:"외식·식당", name:"김치볶음밥", unit:"1인분", kcal:650, p:16, c:95, f:22, s:6, n:1700, est:true },
+    { group:"외식·식당", name:"쌈밥·고깃집 1인분", unit:"1인분", kcal:900, p:45, c:60, f:52, s:8, n:2000, est:true },
+    { group:"외식·식당", name:"마라탕(보통)", unit:"1인분", kcal:700, p:28, c:55, f:40, s:6, n:2500, est:true },
+    { group:"외식·식당", name:"짜장면", unit:"1인분", kcal:700, p:18, c:110, f:20, s:14, n:1800, est:true },
+    { group:"외식·식당", name:"짬뽕", unit:"1인분", kcal:680, p:28, c:90, f:22, s:8, n:2800, est:true },
+    { group:"외식·식당", name:"탕수육(소, 1/3)", unit:"1/3접시", kcal:450, p:18, c:45, f:22, s:15, n:600, est:true },
+    { group:"외식·식당", name:"초밥", unit:"10피스", kcal:600, p:32, c:90, f:10, s:10, n:1300, est:true },
+    { group:"외식·식당", name:"쌀국수", unit:"1인분", kcal:480, p:25, c:70, f:9, s:8, n:1900, est:true },
+    { group:"외식·식당", name:"파스타(크림)", unit:"1인분", kcal:900, p:25, c:90, f:48, s:8, n:1500, est:true },
+    { group:"외식·식당", name:"파스타(토마토)", unit:"1인분", kcal:650, p:20, c:95, f:20, s:12, n:1400, est:true },
+
+    // ===== 배달·패스트푸드 =====
+    { group:"배달·패스트푸드", name:"후라이드 치킨", unit:"1조각", kcal:200, p:14, c:9, f:12, s:0.5, n:350, est:true },
+    { group:"배달·패스트푸드", name:"후라이드 치킨 반마리", unit:"반마리", kcal:800, p:56, c:36, f:48, s:2, n:1400, est:true },
+    { group:"배달·패스트푸드", name:"양념치킨", unit:"1조각", kcal:250, p:13, c:20, f:13, s:9, n:450, est:true },
+    { group:"배달·패스트푸드", name:"양념치킨 반마리", unit:"반마리", kcal:1000, p:52, c:80, f:52, s:36, n:1800, est:true },
+    { group:"배달·패스트푸드", name:"피자", unit:"1조각", kcal:280, p:12, c:32, f:11, s:4, n:600, est:true },
+    { group:"배달·패스트푸드", name:"족발", unit:"200g", kcal:480, p:42, c:2, f:34, s:1, n:1200, est:true },
+    { group:"배달·패스트푸드", name:"보쌈", unit:"200g", kcal:440, p:40, c:2, f:30, s:1, n:1000, est:true },
+    { group:"배달·패스트푸드", name:"곱창볶음", unit:"1인분", kcal:700, p:30, c:30, f:50, s:8, n:1800, est:true },
+    { group:"배달·패스트푸드", name:"햄버거 단품", unit:"1개", kcal:550, p:26, c:45, f:29, s:9, n:1000, est:true },
+    { group:"배달·패스트푸드", name:"햄버거 세트(감튀+콜라)", unit:"1세트", kcal:1050, p:30, c:120, f:48, s:45, n:1500, est:true },
+    { group:"배달·패스트푸드", name:"감자튀김(중)", unit:"1개", kcal:340, p:4, c:44, f:17, s:0.5, n:280, est:true },
+    { group:"배달·패스트푸드", name:"샌드위치(서브웨이 15cm)", unit:"1개", kcal:380, p:22, c:46, f:11, s:7, n:900, est:true },
+    { group:"배달·패스트푸드", name:"샐러드(닭가슴살, 드레싱 포함)", unit:"1개", kcal:350, p:28, c:20, f:17, s:6, n:800, est:true },
+
+    // ===== 음료·주류 =====
+    { group:"음료·주류", name:"아메리카노", unit:"1잔", kcal:10, p:0.5, c:2, f:0, s:0, n:10 },
+    { group:"음료·주류", name:"카페라떼", unit:"1잔", kcal:180, p:9, c:16, f:9, s:15, n:120, est:true },
+    { group:"음료·주류", name:"콜라", unit:"1캔(250ml)", kcal:105, p:0, c:27, f:0, s:27, n:12 },
+    { group:"음료·주류", name:"제로 콜라", unit:"1캔(250ml)", kcal:0, p:0, c:0, f:0, s:0, n:20 },
+    { group:"음료·주류", name:"소주", unit:"1병(360ml)", kcal:408, p:0, c:0, f:0, s:0, n:0 },
+    { group:"음료·주류", name:"소주", unit:"1잔(50ml)", kcal:57, p:0, c:0, f:0, s:0, n:0 },
+    { group:"음료·주류", name:"맥주", unit:"1캔(500ml)", kcal:210, p:1.5, c:16, f:0, s:0, n:15 },
+    { group:"음료·주류", name:"막걸리", unit:"1병(750ml)", kcal:340, p:11, c:53, f:0, s:20, n:80, est:true },
+    { group:"음료·주류", name:"하이볼·소맥 1잔", unit:"1잔", kcal:150, p:0, c:8, f:0, s:8, n:10, est:true },
+
+    // ===== 대충 기록 =====
+    { group:"대충 기록", name:"[대충] 가벼운 한 끼", unit:"추정", kcal:400, p:20, c:45, f:14, s:6, n:900, est:true },
+    { group:"대충 기록", name:"[대충] 보통 한 끼", unit:"추정", kcal:700, p:30, c:80, f:26, s:10, n:1500, est:true },
+    { group:"대충 기록", name:"[대충] 기름진 한 끼", unit:"추정", kcal:1050, p:38, c:95, f:52, s:16, n:2200, est:true },
+    { group:"대충 기록", name:"[대충] 가벼운 간식", unit:"추정", kcal:150, p:4, c:20, f:6, s:10, n:150, est:true },
+    { group:"대충 기록", name:"[대충] 든든한 간식", unit:"추정", kcal:350, p:8, c:42, f:16, s:20, n:350, est:true },
+    { group:"대충 기록", name:"[대충] 술자리 (가볍게)", unit:"추정", kcal:800, p:25, c:60, f:35, s:12, n:2000, est:true },
+    { group:"대충 기록", name:"[대충] 술자리 (제대로)", unit:"추정", kcal:1600, p:45, c:120, f:75, s:25, n:3500, est:true },
   ];
 
   const SUGAR_NOTE_ITEMS = new Set(["그릭요거트(PB)","저지방 우유","닭가슴살 소시지","현미 주먹밥(CU)","삼각김밥(참치마요)","고단백 도시락(닭가슴살/계란)","프로틴바"]);
@@ -675,6 +834,8 @@
   const WATER_PREFIX = "cu-tracker:water:";
   const RECENT_KEY = "cu-tracker:recent";
   const LASTBACKUP_KEY = "cu-tracker:lastBackup";
+  const USECOUNT_KEY = "cu-tracker:useCount";
+  const WORKOUT_PREFIX = "cu-tracker:workout:";
 
   let entries = [];
   let targets = { ...DEFAULT_TARGETS };
@@ -689,6 +850,9 @@
   let recentItems = [];
   let water = 0;
   let lastBackup = null;
+  let useCount = {};
+  let workouts = [];
+  let selectedPreset = null;
 
   const WATER_CUP_ML = 250;
   const WATER_GOAL_CUPS = 8;
@@ -990,6 +1154,16 @@
     }catch(err){ water = 0; }
 
     try{
+      const res = await store.get(USECOUNT_KEY, false);
+      useCount = res && res.value ? JSON.parse(res.value) : {};
+    }catch(err){ useCount = {}; }
+
+    try{
+      const res = await store.get(WORKOUT_PREFIX + DATE_KEY, false);
+      workouts = res && res.value ? JSON.parse(res.value) : [];
+    }catch(err){ workouts = []; }
+
+    try{
       const res = await store.get(LASTBACKUP_KEY, false);
       lastBackup = res && res.value ? res.value : null;
     }catch(err){ lastBackup = null; }
@@ -1013,6 +1187,8 @@
     renderRecentRow();
     renderUserPresetList();
     renderWater();
+    renderWorkoutQuick();
+    renderWorkouts();
     renderComboRow();
     renderCustomComboList();
     renderDraftList();
@@ -1215,7 +1391,7 @@
 
   /* ---------- 백업 ---------- */
   async function collectAllData(){
-    const data = { version:2, exportedAt:new Date().toISOString(), entries:{}, weights:{}, water:{}, targets, favorites, bodyStats, customCombos, hiddenDefaultCombos, userPresets, recentItems };
+    const data = { version:3, exportedAt:new Date().toISOString(), entries:{}, weights:{}, water:{}, workouts:{}, targets, favorites, bodyStats, customCombos, hiddenDefaultCombos, userPresets, recentItems, useCount };
     try{
       const eRes = await store.list(ENTRIES_PREFIX, false);
       for (const key of (eRes.keys||[])){
@@ -1231,6 +1407,11 @@
       for (const key of (waRes.keys||[])){
         const r = await store.get(key, false);
         if (r && r.value) data.water[key.replace(WATER_PREFIX,"")] = Number(r.value);
+      }
+      const woRes = await store.list(WORKOUT_PREFIX, false);
+      for (const key of (woRes.keys||[])){
+        const r = await store.get(key, false);
+        if (r && r.value) data.workouts[key.replace(WORKOUT_PREFIX,"")] = JSON.parse(r.value);
       }
     }catch(err){ /* 부분 백업이라도 반환 */ }
     return data;
@@ -1289,6 +1470,12 @@
         await store.set(WATER_PREFIX + date, String(data.water[date]));
       }
     }
+    if (data.workouts){
+      for (const date of Object.keys(data.workouts)){
+        await store.set(WORKOUT_PREFIX + date, JSON.stringify(data.workouts[date]));
+      }
+    }
+    if (data.useCount) await store.set(USECOUNT_KEY, JSON.stringify(data.useCount));
     if (data.targets) await store.set(TARGETS_KEY, JSON.stringify(data.targets));
     if (data.favorites) await store.set(FAVORITES_KEY, JSON.stringify(data.favorites));
     if (data.bodyStats) await store.set(BODYSTATS_KEY, JSON.stringify(data.bodyStats));
@@ -1417,11 +1604,13 @@
     $("cFat").value=0; $("cSugar").value=0; $("cSodium").value=0;
   }
 
+  /* ---------- 콤보 빌더용 드롭다운 (그대로 유지) ---------- */
   function fillPresetOptions(sel, filterText){
     const q = (filterText||"").trim().toLowerCase();
+    const list = allPresets();
     const filtered = q
-      ? allPresets().filter(p => (p.name+" "+p.unit+" "+(p.group||"")).toLowerCase().includes(q))
-      : allPresets();
+      ? list.filter(p => (p.name+" "+p.unit+" "+(p.group||"")).toLowerCase().includes(q))
+      : list;
     const groups = {};
     filtered.forEach(p=>{ groups[p.group] = groups[p.group] || []; groups[p.group].push(p); });
     sel.innerHTML = "";
@@ -1437,7 +1626,7 @@
       og.label = g;
       groups[g].forEach(p=>{
         const opt = document.createElement("option");
-        opt.value = allPresets().indexOf(p);
+        opt.value = list.indexOf(p);
         opt.textContent = `${p.name} (${p.unit})`;
         og.appendChild(opt);
       });
@@ -1446,9 +1635,9 @@
   }
 
   function buildPresetSelect(){
-    fillPresetOptions($("presetSelect"));
     fillPresetOptions($("comboBuildSelect"));
-    updatePresetPreview();
+    renderResults($("presetSearch") ? $("presetSearch").value : "");
+    renderRoughPane();
   }
 
   function unitGrams(p){
@@ -1456,25 +1645,104 @@
     return m ? Number(m[1]) : null;
   }
 
-  function updatePresetPreview(){
-    const sel = $("presetSelect");
-    if (!sel.value){
-      $("presetMacroPreview").textContent = "";
-      $("favToggleBtn").classList.remove("active");
-      $("favToggleBtn").textContent = "☆";
-      $("gramBox").style.display = "none";
-      $("gramSpacer").style.display = "";
-      $("gramHint").textContent = "";
+  /* ---------- 검색 즉시 목록 ---------- */
+  function bumpUse(p){
+    const id = presetId(p);
+    useCount[id] = (useCount[id] || 0) + 1;
+    storageSetSafe(USECOUNT_KEY, JSON.stringify(useCount), "사용 빈도");
+  }
+
+  function scorePreset(p, q){
+    const id = presetId(p);
+    let score = (useCount[id] || 0) * 10;
+    if (favorites.includes(id)) score += 25;
+    if (q){
+      const name = p.name.toLowerCase();
+      if (name.startsWith(q)) score += 6;
+      else if (name.includes(q)) score += 3;
+    }
+    return score;
+  }
+
+  function renderResults(filterText){
+    const wrap = $("presetResults");
+    if (!wrap) return;
+    const q = (filterText||"").trim().toLowerCase();
+    let list = allPresets();
+    if (q) list = list.filter(p => (p.name+" "+p.unit+" "+(p.group||"")).toLowerCase().includes(q));
+
+    const scored = list.map((p,i)=>({ p, i, sc: scorePreset(p, q) }));
+    scored.sort((a,b)=> b.sc - a.sc || a.i - b.i);
+
+    wrap.innerHTML = "";
+    if (scored.length === 0){
+      wrap.innerHTML = `<div class="result-empty">검색 결과가 없어요.<br>"대충 기록"이나 "직접 입력"을 써보세요.</div>`;
       return;
     }
-    const idx = Number(sel.value);
-    const p = allPresets()[idx];
-    if (!p) return;
+
+    const shown = q ? scored.slice(0, 40) : scored.slice(0, 25);
+    if (!q){
+      const head = document.createElement("div");
+      head.className = "rl-group";
+      head.textContent = "자주 먹는 순";
+      wrap.appendChild(head);
+    }
+
+    shown.forEach(({p})=>{
+      const row = document.createElement("button");
+      row.className = "result-item" + (selectedPreset && presetId(selectedPreset)===presetId(p) ? " sel" : "");
+      const used = useCount[presetId(p)] || 0;
+      const fav = favorites.includes(presetId(p)) ? "★ " : "";
+      row.innerHTML = `
+        <div class="ri-main">
+          <div class="ri-name">${fav}${p.name} <span class="ri-unit">(${p.unit})</span>${p.est ? '<span class="ri-badge">추정</span>' : ''}</div>
+          <div class="ri-sub num">P ${p.p} · C ${p.c} · F ${p.f}${used ? " · " + used + "회" : ""}</div>
+        </div>
+        <div class="ri-kcal num">${p.kcal}</div>`;
+      const quick = document.createElement("span");
+      quick.className = "ri-quick";
+      quick.textContent = "＋";
+      quick.addEventListener("click", (ev)=>{
+        ev.stopPropagation();
+        bumpUse(p);
+        addEntryAndSave({ name:`${p.name} x1`, kcal:p.kcal, p:p.p, c:p.c, f:p.f, s:p.s||0, n:p.n||0 });
+        renderResults($("presetSearch").value);
+      });
+      row.appendChild(quick);
+      row.addEventListener("click", ()=> selectPreset(p));
+      wrap.appendChild(row);
+    });
+
+    if (scored.length > shown.length){
+      const more = document.createElement("div");
+      more.className = "result-empty";
+      more.textContent = `외 ${scored.length - shown.length}개 — 검색어를 더 입력해보세요`;
+      wrap.appendChild(more);
+    }
+  }
+
+  function selectPreset(p){
+    selectedPreset = p;
+    $("selectedBox").style.display = "";
+    $("selName").textContent = `${p.name} (${p.unit})`;
+    updatePresetPreview();
+    renderResults($("presetSearch").value);
+    $("selectedBox").scrollIntoView({ behavior:"smooth", block:"nearest" });
+  }
+
+  function updatePresetPreview(){
+    const p = selectedPreset;
+    if (!p){
+      $("selectedBox").style.display = "none";
+      return;
+    }
+    const est = p.est ? " · 가게마다 차이가 큰 추정치예요" : "";
     const note = (SUGAR_NOTE_ITEMS.has(p.name) || SODIUM_NOTE_ITEMS.has(p.name)) ? " (당류/나트륨 일부 추정치)" : "";
     $("presetMacroPreview").textContent =
-      `${p.unit} 기준 · ${p.kcal}kcal · 단백질 ${p.p}g · 탄수 ${p.c}g · 지방 ${p.f}g · 당 ${p.s||0}g · Na ${p.n||0}mg${note}`;
-    $("favToggleBtn").classList.toggle("active", favorites.includes(presetId(p)));
-    $("favToggleBtn").textContent = favorites.includes(presetId(p)) ? "★" : "☆";
+      `${p.unit} 기준 · ${p.kcal}kcal · 단백질 ${p.p}g · 탄수 ${p.c}g · 지방 ${p.f}g · 당 ${p.s||0}g · Na ${p.n||0}mg${note}${est}`;
+    const isFav = favorites.includes(presetId(p));
+    $("favToggleBtn").classList.toggle("active", isFav);
+    $("favToggleBtn").textContent = isFav ? "★" : "☆";
 
     const g = unitGrams(p);
     $("gramBox").style.display = g ? "" : "none";
@@ -1484,7 +1752,7 @@
   }
 
   function updateGramHint(){
-    const p = allPresets()[Number($("presetSelect").value)];
+    const p = selectedPreset;
     const g = p ? unitGrams(p) : null;
     const hint = $("gramHint");
     if (!p || !g){ hint.textContent = ""; return; }
@@ -1492,6 +1760,100 @@
     if (!grams){ hint.textContent = `그램을 넣으면 ${p.unit} 기준으로 자동 환산돼요. (비우면 아래 수량 사용)`; return; }
     const r = grams / g;
     hint.textContent = `${grams}g → ${fmt(p.kcal*r)}kcal · 단백질 ${fmt(p.p*r)}g · 탄수 ${fmt(p.c*r)}g · 지방 ${fmt(p.f*r)}g`;
+  }
+
+  /* ---------- 대충 기록 ---------- */
+  const ROUGH_GROUPS = [
+    { title:"한 끼", names:["[대충] 가벼운 한 끼","[대충] 보통 한 끼","[대충] 기름진 한 끼"], subs:["샐러드·국수·가벼운 백반","일반 백반·덮밥","튀김·고기·중식"] },
+    { title:"간식", names:["[대충] 가벼운 간식","[대충] 든든한 간식"], subs:["과일·요거트·과자 조금","빵·디저트·과자 한 봉"] },
+    { title:"술자리", names:["[대충] 술자리 (가볍게)","[대충] 술자리 (제대로)"], subs:["1차, 안주 조금","2차 이상, 안주 실컷"] },
+  ];
+
+  function renderRoughPane(){
+    const wrap = $("roughList");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    ROUGH_GROUPS.forEach(g=>{
+      const box = document.createElement("div");
+      box.className = "rough-group";
+      const t = document.createElement("p");
+      t.className = "rough-title";
+      t.textContent = g.title;
+      box.appendChild(t);
+      const row = document.createElement("div");
+      row.className = "rough-row";
+      g.names.forEach((nm, i)=>{
+        const p = allPresets().find(x=> x.name === nm);
+        if (!p) return;
+        const btn = document.createElement("button");
+        btn.className = "rough-btn";
+        const label = nm.replace("[대충] ", "");
+        btn.innerHTML = `${label}<small>약 ${p.kcal}kcal</small><small>${g.subs[i]||""}</small>`;
+        btn.addEventListener("click", ()=>{
+          bumpUse(p);
+          addEntryAndSave({ name:`${label} (추정)`, kcal:p.kcal, p:p.p, c:p.c, f:p.f, s:p.s||0, n:p.n||0 });
+        });
+        row.appendChild(btn);
+      });
+      box.appendChild(row);
+      wrap.appendChild(box);
+    });
+  }
+
+  /* ---------- 운동 ---------- */
+  const WORKOUT_QUICK = [
+    { type:"웨이트", min:60 },
+    { type:"유산소", min:30 },
+    { type:"걷기", min:30 },
+  ];
+
+  async function saveWorkouts(){ return await storageSetSafe(WORKOUT_PREFIX + DATE_KEY, JSON.stringify(workouts), "운동 기록"); }
+
+  function renderWorkoutQuick(){
+    const row = $("workoutQuickRow");
+    if (!row) return;
+    row.innerHTML = "";
+    WORKOUT_QUICK.forEach(w=>{
+      const btn = document.createElement("button");
+      btn.className = "chip";
+      btn.textContent = `${w.type} ${w.min}분`;
+      btn.addEventListener("click", ()=> addWorkout(w.type, w.min, ""));
+      row.appendChild(btn);
+    });
+  }
+
+  function addWorkout(type, min, memo){
+    workouts.push({ id: Date.now()+"-"+Math.random().toString(36).slice(2,6), type, min: Number(min)||0, memo: memo||"" });
+    saveWorkouts();
+    renderWorkouts();
+  }
+
+  function renderWorkouts(){
+    const wrap = $("workoutList");
+    if (!wrap) return;
+    if (workouts.length === 0){
+      wrap.innerHTML = `<div class="empty" style="padding:12px 0;">기록이 없어요.</div>`;
+    } else {
+      wrap.innerHTML = "";
+      workouts.forEach(w=>{
+        const row = document.createElement("div");
+        row.className = "wo-item";
+        row.innerHTML = `<div><div class="wo-name">${w.type} <span style="color:var(--muted);font-weight:400;">${w.min}분</span></div>${w.memo ? `<div class="wo-sub">${w.memo}</div>` : ""}</div>`;
+        const del = document.createElement("button");
+        del.className = "icon-btn del";
+        del.textContent = "×";
+        del.addEventListener("click", ()=>{
+          workouts = workouts.filter(x=> x.id !== w.id);
+          saveWorkouts();
+          renderWorkouts();
+        });
+        row.appendChild(del);
+        wrap.appendChild(row);
+      });
+    }
+    const total = workouts.reduce((a,b)=> a + (b.min||0), 0);
+    const sub = $("workoutHeadSub");
+    if (sub) sub.textContent = total > 0 ? `${total}분` : "";
   }
 
   function renderFavRow(){
@@ -1963,18 +2325,15 @@
       if (f) importFromFile(f);
     });
 
-    $("presetSelect").addEventListener("change", updatePresetPreview);
     $("presetSearch").addEventListener("input", ()=>{
-      fillPresetOptions($("presetSelect"), $("presetSearch").value);
-      updatePresetPreview();
+      renderResults($("presetSearch").value);
     });
     $("comboSearch").addEventListener("input", ()=>{
       fillPresetOptions($("comboBuildSelect"), $("comboSearch").value);
     });
 
     $("favToggleBtn").addEventListener("click", ()=>{
-      const idx = Number($("presetSelect").value);
-      const p = allPresets()[idx];
+      const p = selectedPreset;
       if (!p) return;
       const id = presetId(p);
       if (favorites.includes(id)) favorites = favorites.filter(x=>x!==id);
@@ -1982,6 +2341,7 @@
       saveFavorites();
       renderFavRow();
       updatePresetPreview();
+      renderResults($("presetSearch").value);
     });
 
     $("addToDraftBtn").addEventListener("click", ()=>{
@@ -2019,8 +2379,7 @@
     });
 
     $("addPresetBtn").addEventListener("click", ()=>{
-      const idx = Number($("presetSelect").value);
-      const p = allPresets()[idx];
+      const p = selectedPreset;
       if (!p) return;
       const g = unitGrams(p);
       const grams = Number($("presetGram").value);
@@ -2033,6 +2392,7 @@
         label = `${p.name} x${mult}`;
       }
       const r = (v) => Math.round((v||0) * mult * 10) / 10;
+      bumpUse(p);
       addEntryAndSave({
         name: label,
         kcal: r(p.kcal), p: r(p.p), c: r(p.c), f: r(p.f), s: r(p.s), n: r(p.n)
@@ -2040,6 +2400,15 @@
       $("presetQty").value = 1;
       $("presetGram").value = "";
       updateGramHint();
+      renderResults($("presetSearch").value);
+    });
+
+    $("addWorkoutBtn").addEventListener("click", ()=>{
+      const min = Number($("woMin").value);
+      if (!min){ $("woMin").focus(); return; }
+      addWorkout($("woType").value, min, $("woMemo").value.trim());
+      $("woMin").value = "";
+      $("woMemo").value = "";
     });
 
     $("addCustomBtn").addEventListener("click", ()=>{
@@ -2083,18 +2452,17 @@
 
     $("cancelEditBtn").addEventListener("click", cancelEdit);
 
-    $("tabPreset").addEventListener("click", ()=>{
-      $("tabPreset").classList.add("active");
-      $("tabCustom").classList.remove("active");
-      $("presetPane").style.display = "";
-      $("customPane").style.display = "none";
-    });
-    $("tabCustom").addEventListener("click", ()=>{
-      $("tabCustom").classList.add("active");
-      $("tabPreset").classList.remove("active");
-      $("customPane").style.display = "";
-      $("presetPane").style.display = "none";
-    });
+    function showPane(which){
+      const map = { preset:["tabPreset","presetPane"], rough:["tabRough","roughPane"], custom:["tabCustom","customPane"] };
+      Object.keys(map).forEach(k=>{
+        const [tab, pane] = map[k];
+        $(tab).classList.toggle("active", k === which);
+        $(pane).style.display = (k === which) ? "" : "none";
+      });
+    }
+    $("tabPreset").addEventListener("click", ()=> showPane("preset"));
+    $("tabRough").addEventListener("click", ()=> showPane("rough"));
+    $("tabCustom").addEventListener("click", ()=> showPane("custom"));
 
     $("calcToggle").addEventListener("click", ()=> $("calcPanel").classList.toggle("open"));
 
