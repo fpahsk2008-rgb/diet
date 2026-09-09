@@ -1674,6 +1674,8 @@
 
   /* ---------- 최근 먹은 것 ---------- */
   /* ---------- 남은 예산 바 + 추천 ---------- */
+  let recOpen = false;
+
   function renderBudgetBar(){
     const wrap = $("budgetBar");
     if (!wrap) return;
@@ -1694,9 +1696,17 @@
         <span>F <b>${fmt(Math.max(remF,0))}g</b></span>
         <span style="margin-left:auto; color:var(--muted);">${currentMeal}</span>
       </div>
-      <button class="bb-btn" id="recBtn">남은 예산으로 뭐 먹을지 추천</button>
+      <button class="bb-btn" id="recBtn" aria-expanded="${recOpen}">${recOpen ? "추천 닫기 ▴" : "남은 예산으로 뭐 먹을지 추천 ▾"}</button>
       <div id="recResults"></div>`;
-    $("recBtn").addEventListener("click", renderRecommendations);
+    $("recBtn").addEventListener("click", ()=>{
+      recOpen = !recOpen;
+      if (recOpen) renderRecommendations();
+      else { $("recResults").innerHTML = ""; }
+      const rb = $("recBtn");
+      rb.textContent = recOpen ? "추천 닫기 ▴" : "남은 예산으로 뭐 먹을지 추천 ▾";
+      rb.setAttribute("aria-expanded", String(recOpen));
+    });
+    if (recOpen) renderRecommendations();
     const badge = $("bnToday");
     if (badge) badge.textContent = over ? `+${Math.round(-remK)}` : `${Math.round(remK)}`;
     const badge2 = $("bnAdd");
@@ -1793,6 +1803,7 @@
       btn.setAttribute("aria-label", "이 조합을 오늘 기록에 추가");
       btn.addEventListener("click", ()=>{
         c.items.forEach(x=> quickAdd(x, 1));
+        recOpen = false;          // 담고 나면 목록은 다시 접기
         renderBudgetBar();
       });
       row.appendChild(btn);
