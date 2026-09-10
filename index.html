@@ -735,6 +735,19 @@
       </div>
     </div>
 
+    <div class="card fold collapsed" data-fold="fiberFill">
+      <button class="card-head"><span class="head-title">지난 기록에 식이섬유 채우기</span><span class="head-sub" id="fiberFillHeadSub"></span><span class="chev">▾</span></button>
+      <div class="card-body">
+        <p class="preset-macro" style="margin-top:0;">식이섬유 기능이 생기기 전에 적은 기록에는 섬유 값이 없어요. 음식 목록과 대조해서 자동으로 채워넣습니다. 목록에 없는 음식(직접 입력한 것 등)은 그대로 비어 있고, 오늘 기록 화면에서 ✎ 버튼으로 직접 고칠 수 있어요.</p>
+        <div class="btn-row">
+          <button class="btn-add btn-secondary" id="fiberScanBtn">먼저 확인해보기</button>
+          <button class="btn-add" id="fiberApplyBtn">채워넣기</button>
+        </div>
+        <p class="save-status" id="fiberFillStatus"></p>
+        <div id="fiberFillPreview"></div>
+      </div>
+    </div>
+
     <div class="card fold collapsed" data-fold="mealsplit">
       <button class="card-head"><span class="head-title">끼니별 목표 배분</span><span class="head-sub" id="splitHeadSub"></span><span class="chev">▾</span></button>
       <div class="card-body">
@@ -2112,6 +2125,127 @@
     await storageSetSafe(LASTBACKUP_KEY, lastBackup, "백업 기록");
     checkBackupAge();
     setStatus("lastBackupStatus", true, "✓ 파일을 내려받았어요. 클라우드나 메신저에 한 번 올려두면 안전해요.");
+  }
+
+  /* ---------- 지난 기록 식이섬유 채우기 ---------- */
+  /* 기록에 남은 이름과 칼로리를 음식 목록과 대조해요.
+     "현미밥 x2"처럼 배수가 붙어 있어도 칼로리 비율로 몇 인분인지 역산합니다. */
+  function guessFiber(e){
+    if (e.fb != null) return null;
+    if (!e.kcal || e.kcal <= 0) return null;
+
+    let raw = e.name || "";
+    let m;
+    if ((m = raw.match(/^(.*?) x[0-9.]+$/))) raw = m[1];
+    else if ((m = raw.match(/^(.*?) [0-9.]+g$/))) raw = m[1];
+    if ((m = raw.match(/^(.*?) \(추정\)$/))) raw = m[1];
+    raw = raw.trim();
+    if (!raw) return null;
+
+    const names = [raw, "[대충] " + raw];
+    const cands = allPresets().filter(p=> names.indexOf(p.name) !== -1 && p.fb != null && p.kcal > 0);
+    if (!cands.length) return null;
+
+    let best = null;
+    cands.forEach(p=>{
+      const ratio = e.kcal / p.kcal;
+      if (!(ratio > 0.05 && ratio < 20)) return;
+      // 단백질·탄수·지방도 같은 비율로 커졌는지 확인 (동명이인 방지)
+      let err = 0;
+      ["p","c","f"].forEach(k=>{
+        const exp = (p[k]||0) * ratio, act = e[k]||0;
+        err += Math.abs(exp - act) / Math.max(1, Math.abs(exp) + Math.abs(act));
+      });
+      if (!best || err < best.err) best = { p, ratio, err };
+    });
+    if (!best || best.err > 0.45) return null;
+    return Math.round(best.p.fb * best.ratio * 10) / 10;
+  }
+
+  async function scanFiber(apply){
+    let keys = [];
+    try{
+      const res = await store.list(ENTRIES_PREFIX, false);
+      keys = (res && res.keys) ? res.keys : [];
+    }catch(err){ return null; }
+
+    const out = { filled:0, left:0, days:0, leftNames:{}, samples:[] };
+    for (const key of keys){
+      let list;
+      try{
+        const r = await store.get(key, false);
+        if (!r || !r.value) continue;
+        list = JSON.parse(r.value);
+      }catch(err){ continue; }
+      if (!Array.isArray(list)) continue;
+
+      let changed = false;
+      list.forEach(e=>{
+        if (e.fb != null) return;
+        const fb = guessFiber(e);
+        if (fb == null){
+          out.left++;
+          out.leftNames[e.name] = (out.leftNames[e.name] || 0) + 1;
+          return;
+        }
+        out.filled++;
+        if (out.samples.length < 6) out.samples.push(`${e.name} → ${fb}g`);
+        if (apply){ e.fb = fb; changed = true; }
+      });
+      if (apply && changed){
+        try{ await store.set(key, JSON.stringify(list)); out.days++; }catch(err){}
+      }
+    }
+    return out;
+  }
+
+  async function runFiberFill(apply){
+    const status = $("fiberFillStatus");
+    const preview = $("fiberFillPreview");
+    if (status) status.textContent = "지난 기록을 훑어보는 중...";
+    if (preview) preview.innerHTML = "";
+
+    const r = await scanFiber(apply);
+    if (!r){ if (status) status.textContent = "기록을 읽지 못했어요."; return; }
+
+    if (r.filled === 0 && r.left === 0){
+      if (status) status.textContent = "✓ 채울 것이 없어요. 모든 기록에 식이섬유가 들어가 있습니다.";
+      return;
+    }
+
+    if (status){
+      status.style.color = "var(--good)";
+      status.textContent = apply
+        ? `✓ ${r.days}일치 기록에서 ${r.filled}개 항목을 채웠어요.` + (r.left ? ` ${r.left}개는 목록에 없어서 그대로 뒀습니다.` : "")
+        : `채울 수 있는 항목 ${r.filled}개 · 목록에 없어서 못 채우는 항목 ${r.left}개.`;
+    }
+
+    if (preview){
+      let html = "";
+      if (r.samples.length){
+        html += `<p class="section-title" style="margin:12px 0 4px;">이렇게 채워집니다</p>`;
+        r.samples.forEach(s=>{ html += `<div class="cmp-row"><span>${esc(s)}</span></div>`; });
+      }
+      const leftList = Object.keys(r.leftNames).slice(0, 8);
+      if (leftList.length){
+        html += `<p class="section-title" style="margin:14px 0 4px;">직접 넣어야 하는 항목</p>`;
+        leftList.forEach(nm=>{
+          html += `<div class="cmp-row"><span>${esc(nm)}</span><span class="num">${r.leftNames[nm]}회</span></div>`;
+        });
+        if (Object.keys(r.leftNames).length > leftList.length){
+          html += `<p class="analysis-note">외 ${Object.keys(r.leftNames).length - leftList.length}종류 더 있어요.</p>`;
+        }
+        html += `<p class="analysis-note">오늘 기록 화면에서 항목의 ✎ 버튼을 누르면 식이섬유 칸이 나와요. 자주 먹는 것부터 한 번만 넣어두면 다음부터는 자동으로 붙습니다.</p>`;
+      }
+      preview.innerHTML = html;
+    }
+
+    if (apply){
+      await loadToday();
+      const sub = $("fiberFillHeadSub");
+      if (sub) sub.textContent = `${r.filled}개 채움`;
+      saveSnapshot(true);
+    }
   }
 
   /* ---------- 저장소 영구화 + 자동 스냅샷 ---------- */
@@ -4022,7 +4156,7 @@
   const PANEL_LAYOUT = {
     panelToday:    [".date-nav", "#pastBanner", ".fold-all-row", "fold:summary", "fold:weight", "fold:water", "fold:breakdown", "fold:log", "fold:workout"],
     panelAdd:      ["#budgetBar", "fold:combo", "fold:add"],
-    panelSettings: ["fold:targets", "fold:mealsplit", "fold:waterCfg", "fold:backup", ".footer-row"],
+    panelSettings: ["fold:targets", "fold:fiberFill", "fold:mealsplit", "fold:waterCfg", "fold:backup", ".footer-row"],
   };
   const FOLD_VIEW = {};
 
@@ -4087,6 +4221,8 @@
     $("copyPrevDayBtn").addEventListener("click", copyPrevDay);
     $("downloadBtn").addEventListener("click", downloadBackup);
     $("snapshotRestoreBtn").addEventListener("click", restoreSnapshot);
+    $("fiberScanBtn").addEventListener("click", ()=> runFiberFill(false));
+    $("fiberApplyBtn").addEventListener("click", ()=> runFiberFill(true));
     $("importFile").addEventListener("change", (ev)=>{
       const f = ev.target.files && ev.target.files[0];
       if (f) importFromFile(f);
