@@ -389,6 +389,13 @@
   .re-actions{ display:flex; gap:8px; margin-top:10px; }
   .re-actions .btn-add{ margin-top:0; }
   .re-actions .star-toggle{ padding:11px 14px; }
+  .mult-row{ display:flex; gap:6px; margin-top:10px; }
+  .mult-btn{
+    flex:1; padding:8px 0; border-radius:9px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--muted); font-size:13px; font-weight:700;
+    font-family:ui-monospace, SFMono-Regular, Menlo, monospace; cursor:pointer;
+  }
+  .mult-btn.active{ background:var(--accent-dim); border-color:var(--accent); color:var(--text); }
   .re-gram{ margin-top:10px; }
   .re-gram label{ font-size:11.5px; color:var(--muted); display:block; margin-bottom:4px; }
 
@@ -618,6 +625,7 @@
           <div><label>단백질 (g)</label><input type="number" inputmode="decimal" id="cProtein" value="0"></div>
           <div><label>탄수화물 (g)</label><input type="number" inputmode="decimal" id="cCarb" value="0"></div>
           <div><label>지방 (g)</label><input type="number" inputmode="decimal" id="cFat" value="0"></div>
+          <div><label>식이섬유 (g)</label><input type="number" inputmode="decimal" id="cFiber" value="0"></div>
           <div><label>당류 (g)</label><input type="number" inputmode="decimal" id="cSugar" value="0"></div>
           <div><label>나트륨 (mg)</label><input type="number" inputmode="decimal" id="cSodium" value="0"></div>
         </div>
@@ -685,6 +693,7 @@
           <div><label>목표 단백질(g)</label><input type="number" inputmode="decimal" id="tProtein"></div>
           <div><label>목표 탄수화물(g)</label><input type="number" inputmode="decimal" id="tCarb"></div>
           <div><label>목표 지방(g)</label><input type="number" inputmode="decimal" id="tFat"></div>
+          <div><label>식이섬유 목표(g)</label><input type="number" inputmode="decimal" id="tFiber"></div>
           <div><label>당류 상한선(g)</label><input type="number" inputmode="decimal" id="tSugar"></div>
           <div><label>나트륨 상한선(mg)</label><input type="number" inputmode="decimal" id="tSodium"></div>
         </div>
@@ -768,6 +777,10 @@
           <button class="btn-add btn-secondary" id="csvBtn">엑셀용 (.csv)</button>
         </div>
         <p class="save-status" id="lastBackupStatus"></p>
+        <p class="preset-macro" id="storageInfo" style="margin-top:2px;">저장소 상태 확인 중...</p>
+        <div class="btn-row" id="snapshotRow" style="display:none;">
+          <button class="btn-add btn-secondary" id="snapshotRestoreBtn">자동 스냅샷으로 되돌리기</button>
+        </div>
         <div class="btn-row">
           <button class="btn-add btn-secondary" id="exportBtn">텍스트로 보기</button>
           <button class="btn-add btn-secondary" id="copyExportBtn">복사</button>
@@ -862,180 +875,180 @@
 (function(){
   const PRESETS = [
     // 단백질 음료
-    { group:"단백질 음료", name:"더단백 멜론맛", unit:"1병(250ml)", kcal:109, p:20, c:5.7, f:1.5, s:0.9, n:23 },
-    { group:"단백질 음료", name:"더단백 커피맛", unit:"1병(250ml)", kcal:107, p:20, c:5.7, f:1.5, s:0.9, n:23 },
-    { group:"단백질 음료", name:"더단백 카라멜맛", unit:"1병(250ml)", kcal:105, p:20, c:7, f:0.6, s:0.8, n:30 },
+    { group:"단백질 음료", name:"더단백 멜론맛", unit:"1병(250ml)", kcal:109, p:20, c:5.7, f:1.5, s:0.9, n:23, fb:0 },
+    { group:"단백질 음료", name:"더단백 커피맛", unit:"1병(250ml)", kcal:107, p:20, c:5.7, f:1.5, s:0.9, n:23, fb:0 },
+    { group:"단백질 음료", name:"더단백 카라멜맛", unit:"1병(250ml)", kcal:105, p:20, c:7, f:0.6, s:0.8, n:30, fb:0 },
 
     // CU 냉장/유제품
-    { group:"CU 냉장·유제품", name:"그릭요거트(PB)", unit:"1개(100g)", kcal:100, p:10, c:8, f:3, s:4, n:45 },
-    { group:"CU 냉장·유제품", name:"저지방 우유", unit:"1개(200ml)", kcal:90, p:7, c:10, f:2, s:10, n:100 },
-    { group:"CU 냉장·유제품", name:"삶은 계란", unit:"1개", kcal:70, p:6, c:0.6, f:5, s:0, n:70 },
-    { group:"CU 냉장·유제품", name:"닭가슴살 소시지", unit:"1개", kcal:90, p:13, c:3, f:2, s:1, n:400 },
+    { group:"CU 냉장·유제품", name:"그릭요거트(PB)", unit:"1개(100g)", kcal:100, p:10, c:8, f:3, s:4, n:45, fb:0 },
+    { group:"CU 냉장·유제품", name:"저지방 우유", unit:"1개(200ml)", kcal:90, p:7, c:10, f:2, s:10, n:100, fb:0 },
+    { group:"CU 냉장·유제품", name:"삶은 계란", unit:"1개", kcal:70, p:6, c:0.6, f:5, s:0, n:70, fb:0 },
+    { group:"CU 냉장·유제품", name:"닭가슴살 소시지", unit:"1개", kcal:90, p:13, c:3, f:2, s:1, n:400, fb:0 },
 
     // 닭가슴살
-    { group:"닭가슴살 (점심 · CJ 케이준)", name:"CJ 더건강한 케이준 스테이크", unit:"100g", kcal:125, p:16, c:4, f:5, s:0, n:450 },
-    { group:"닭가슴살 (점심 · CJ 케이준)", name:"CJ 더건강한 케이준 스테이크", unit:"150g", kcal:188, p:24, c:6, f:7.5, s:0, n:675 },
-    { group:"닭가슴살 (점심 · CJ 케이준)", name:"CJ 더건강한 케이준 스테이크", unit:"200g", kcal:250, p:32, c:8, f:10, s:0, n:900 },
+    { group:"닭가슴살 (점심 · CJ 케이준)", name:"CJ 더건강한 케이준 스테이크", unit:"100g", kcal:125, p:16, c:4, f:5, s:0, n:450, fb:0 },
+    { group:"닭가슴살 (점심 · CJ 케이준)", name:"CJ 더건강한 케이준 스테이크", unit:"150g", kcal:188, p:24, c:6, f:7.5, s:0, n:675, fb:0 },
+    { group:"닭가슴살 (점심 · CJ 케이준)", name:"CJ 더건강한 케이준 스테이크", unit:"200g", kcal:250, p:32, c:8, f:10, s:0, n:900, fb:0 },
 
-    { group:"닭가슴살 (저녁 · 하림 핑크솔트)", name:"하림 핑크솔트 닭가슴살", unit:"100g", kcal:110, p:21, c:4, f:1, s:0, n:150 },
-    { group:"닭가슴살 (저녁 · 하림 핑크솔트)", name:"하림 핑크솔트 닭가슴살", unit:"150g", kcal:165, p:31.5, c:6, f:1.5, s:0, n:225 },
-    { group:"닭가슴살 (저녁 · 하림 핑크솔트)", name:"하림 핑크솔트 닭가슴살", unit:"200g", kcal:220, p:42, c:8, f:2, s:0, n:300 },
+    { group:"닭가슴살 (저녁 · 하림 핑크솔트)", name:"하림 핑크솔트 닭가슴살", unit:"100g", kcal:110, p:21, c:4, f:1, s:0, n:150, fb:0 },
+    { group:"닭가슴살 (저녁 · 하림 핑크솔트)", name:"하림 핑크솔트 닭가슴살", unit:"150g", kcal:165, p:31.5, c:6, f:1.5, s:0, n:225, fb:0 },
+    { group:"닭가슴살 (저녁 · 하림 핑크솔트)", name:"하림 핑크솔트 닭가슴살", unit:"200g", kcal:220, p:42, c:8, f:2, s:0, n:300, fb:0 },
 
-    { group:"닭가슴살 (저녁 · 일반 비조리)", name:"일반 비조리 닭가슴살", unit:"100g", kcal:105, p:23, c:0, f:1.2, s:0, n:50 },
-    { group:"닭가슴살 (저녁 · 일반 비조리)", name:"일반 비조리 닭가슴살", unit:"150g", kcal:158, p:34.5, c:0, f:1.8, s:0, n:75 },
-    { group:"닭가슴살 (저녁 · 일반 비조리)", name:"일반 비조리 닭가슴살", unit:"200g", kcal:210, p:46, c:0, f:2.4, s:0, n:100 },
+    { group:"닭가슴살 (저녁 · 일반 비조리)", name:"일반 비조리 닭가슴살", unit:"100g", kcal:105, p:23, c:0, f:1.2, s:0, n:50, fb:0 },
+    { group:"닭가슴살 (저녁 · 일반 비조리)", name:"일반 비조리 닭가슴살", unit:"150g", kcal:158, p:34.5, c:0, f:1.8, s:0, n:75, fb:0 },
+    { group:"닭가슴살 (저녁 · 일반 비조리)", name:"일반 비조리 닭가슴살", unit:"200g", kcal:210, p:46, c:0, f:2.4, s:0, n:100, fb:0 },
 
     // 밥/탄수화물
-    { group:"밥·탄수화물", name:"현미밥", unit:"100g", kcal:130, p:2.5, c:28, f:1, s:0, n:2 },
-    { group:"밥·탄수화물", name:"현미밥", unit:"130g", kcal:169, p:3.3, c:36, f:1.3, s:0, n:3 },
-    { group:"밥·탄수화물", name:"현미밥", unit:"150g", kcal:195, p:3.8, c:42, f:1.5, s:0, n:3 },
-    { group:"밥·탄수화물", name:"현미밥", unit:"200g", kcal:260, p:5, c:56, f:2, s:0, n:4 },
-    { group:"밥·탄수화물", name:"쌀밥", unit:"125g", kcal:163, p:3, c:35, f:0.5, s:0, n:2 },
-    { group:"밥·탄수화물", name:"현미 주먹밥(CU)", unit:"1개", kcal:180, p:4, c:38, f:1, s:1, n:350 },
+    { group:"밥·탄수화물", name:"현미밥", unit:"100g", kcal:130, p:2.5, c:28, f:1, s:0, n:2, fb:1.5 },
+    { group:"밥·탄수화물", name:"현미밥", unit:"130g", kcal:169, p:3.3, c:36, f:1.3, s:0, n:3, fb:2 },
+    { group:"밥·탄수화물", name:"현미밥", unit:"150g", kcal:195, p:3.8, c:42, f:1.5, s:0, n:3, fb:2.3 },
+    { group:"밥·탄수화물", name:"현미밥", unit:"200g", kcal:260, p:5, c:56, f:2, s:0, n:4, fb:3 },
+    { group:"밥·탄수화물", name:"쌀밥", unit:"125g", kcal:163, p:3, c:35, f:0.5, s:0, n:2, fb:0.4 },
+    { group:"밥·탄수화물", name:"현미 주먹밥(CU)", unit:"1개", kcal:180, p:4, c:38, f:1, s:1, n:350, fb:1.5 },
 
 
     /* 삼양 탱글 프로틴 파스타 (병아리콩 건면) — 공식 홈페이지 총 내용량 기준 */
-    { group:"프로틴 파스타", name:"탱글 바질토마토 프로틴 파스타", unit:"1개(105g)", kcal:345, p:17, c:65, f:2.7, s:5, n:840 },
-    { group:"프로틴 파스타", name:"탱글 바질토마토 프로틴 파스타", unit:"반개(52g)", kcal:173, p:8.5, c:32.5, f:1.4, s:2.5, n:420 },
-    { group:"프로틴 파스타", name:"탱글 갈릭오일 프로틴 파스타", unit:"1개(100g)", kcal:370, p:16, c:64, f:7, s:4, n:960 },
-    { group:"프로틴 파스타", name:"탱글 갈릭오일 프로틴 파스타", unit:"반개(50g)", kcal:185, p:8, c:32, f:3.5, s:2, n:480 },
+    { group:"프로틴 파스타", name:"탱글 바질토마토 프로틴 파스타", unit:"1개(105g)", kcal:345, p:17, c:65, f:2.7, s:5, n:840, fb:9 },
+    { group:"프로틴 파스타", name:"탱글 바질토마토 프로틴 파스타", unit:"반개(52g)", kcal:173, p:8.5, c:32.5, f:1.4, s:2.5, n:420, fb:4.5 },
+    { group:"프로틴 파스타", name:"탱글 갈릭오일 프로틴 파스타", unit:"1개(100g)", kcal:370, p:16, c:64, f:7, s:4, n:960, fb:8.5 },
+    { group:"프로틴 파스타", name:"탱글 갈릭오일 프로틴 파스타", unit:"반개(50g)", kcal:185, p:8, c:32, f:3.5, s:2, n:480, fb:4.3 },
 
     // CU 간편식
-    { group:"CU 간편식", name:"삼각김밥(참치마요)", unit:"1개", kcal:170, p:4, c:25, f:6, s:2, n:400 },
-    { group:"CU 간편식", name:"고단백 도시락(닭가슴살/계란)", unit:"1개", kcal:420, p:35, c:40, f:12, s:3, n:700 },
+    { group:"CU 간편식", name:"삼각김밥(참치마요)", unit:"1개", kcal:170, p:4, c:25, f:6, s:2, n:400, fb:1 },
+    { group:"CU 간편식", name:"고단백 도시락(닭가슴살/계란)", unit:"1개", kcal:420, p:35, c:40, f:12, s:3, n:700, fb:3 },
 
     /* CU 계란말이밥 소고기맛 — 포장 영양성분표 기준 (총 내용량 180g = 90g×2개) */
-    { group:"CU 간편식", name:"계란말이밥 소고기맛(CU)", unit:"1개(90g)", kcal:138, p:6.5, c:20, f:3.6, s:1, n:435 },
-    { group:"CU 간편식", name:"계란말이밥 소고기맛(CU)", unit:"1팩(180g·2개)", kcal:275, p:13, c:40, f:7.2, s:2, n:870 },
+    { group:"CU 간편식", name:"계란말이밥 소고기맛(CU)", unit:"1개(90g)", kcal:138, p:6.5, c:20, f:3.6, s:1, n:435, fb:0.5 },
+    { group:"CU 간편식", name:"계란말이밥 소고기맛(CU)", unit:"1팩(180g·2개)", kcal:275, p:13, c:40, f:7.2, s:2, n:870, fb:1 },
 
     // 간식
-    { group:"간식", name:"바나나", unit:"1개", kcal:105, p:1, c:27, f:0.3, s:14, n:1 },
-    { group:"간식", name:"프로틴바", unit:"1개", kcal:200, p:20, c:20, f:6, s:5, n:200 },
-    { group:"간식", name:"널담 고단백 황치즈 쿠키", unit:"1팩(50g)", kcal:221, p:7.7, c:23, f:14, s:2.5, n:250 },
-    { group:"간식", name:"널담 화이트초코마카다미아 쿠키", unit:"1팩(50g)", kcal:266, p:9.1, c:17, f:18, s:1.4, n:196 },
-    { group:"간식", name:"견과류 소포장", unit:"1봉", kcal:170, p:5, c:6, f:15, s:1, n:2 },
+    { group:"간식", name:"바나나", unit:"1개", kcal:105, p:1, c:27, f:0.3, s:14, n:1, fb:2.6 },
+    { group:"간식", name:"프로틴바", unit:"1개", kcal:200, p:20, c:20, f:6, s:5, n:200, fb:3 },
+    { group:"간식", name:"널담 고단백 황치즈 쿠키", unit:"1팩(50g)", kcal:221, p:7.7, c:23, f:14, s:2.5, n:250, fb:1 },
+    { group:"간식", name:"널담 화이트초코마카다미아 쿠키", unit:"1팩(50g)", kcal:266, p:9.1, c:17, f:18, s:1.4, n:196, fb:1.5 },
+    { group:"간식", name:"견과류 소포장", unit:"1봉", kcal:170, p:5, c:6, f:15, s:1, n:2, fb:2 },
 
     // 직접 조리한 끼니
-    { group:"직접 조리한 끼니", name:"참치(기름 제거)", unit:"90g", kcal:108, p:22, c:0, f:4.5, s:0, n:300 },
-    { group:"직접 조리한 끼니", name:"계란(구움/삶음)", unit:"1개", kcal:70, p:6, c:0.5, f:5, s:0, n:70 },
-    { group:"직접 조리한 끼니", name:"계란 2개(구움/삶음)", unit:"2개", kcal:140, p:12, c:1, f:10, s:0, n:140 },
+    { group:"직접 조리한 끼니", name:"참치(기름 제거)", unit:"90g", kcal:108, p:22, c:0, f:4.5, s:0, n:300, fb:0 },
+    { group:"직접 조리한 끼니", name:"계란(구움/삶음)", unit:"1개", kcal:70, p:6, c:0.5, f:5, s:0, n:70, fb:0 },
+    { group:"직접 조리한 끼니", name:"계란 2개(구움/삶음)", unit:"2개", kcal:140, p:12, c:1, f:10, s:0, n:140, fb:0 },
 
     // 채소
-    { group:"채소", name:"양배추(생/찜)", unit:"100g", kcal:25, p:1.3, c:5.8, f:0.1, s:3.2, n:18 },
-    { group:"채소", name:"양배추(생/찜)", unit:"150g", kcal:38, p:2, c:8.7, f:0.2, s:4.8, n:27 },
-    { group:"채소", name:"대파", unit:"한줌(25g)", kcal:8, p:0.4, c:1.6, f:0, s:0.6, n:1, est:true },
-    { group:"채소", name:"대파", unit:"1대(100g)", kcal:30, p:1.5, c:6.5, f:0.2, s:2.3, n:5, est:true },
-    { group:"채소", name:"쪽파·실파", unit:"한줌(20g)", kcal:6, p:0.4, c:1.2, f:0, s:0.4, n:1, est:true },
+    { group:"채소", name:"양배추(생/찜)", unit:"100g", kcal:25, p:1.3, c:5.8, f:0.1, s:3.2, n:18, fb:2.5 },
+    { group:"채소", name:"양배추(생/찜)", unit:"150g", kcal:38, p:2, c:8.7, f:0.2, s:4.8, n:27, fb:3.8 },
+    { group:"채소", name:"대파", unit:"한줌(25g)", kcal:8, p:0.4, c:1.6, f:0, s:0.6, n:1, fb:0.6, est:true },
+    { group:"채소", name:"대파", unit:"1대(100g)", kcal:30, p:1.5, c:6.5, f:0.2, s:2.3, n:5, fb:2.6, est:true },
+    { group:"채소", name:"쪽파·실파", unit:"한줌(20g)", kcal:6, p:0.4, c:1.2, f:0, s:0.4, n:1, fb:0.5, est:true },
 
     /* 양념·기름 — 조리하면서 들어가는 것들. 기름은 눈에 안 보여도 칼로리가 큰 편이라 따로 기록하는 게 좋아요.
        계량 기준: 1작은술 = 5ml, 1큰술 = 15ml, 냉동 다진마늘 큐브 1개 ≈ 5g */
-    { group:"양념·기름", name:"올리브유", unit:"1작은술(5ml)", kcal:40, p:0, c:0, f:4.5, s:0, n:0 },
-    { group:"양념·기름", name:"올리브유", unit:"1큰술(15ml)", kcal:120, p:0, c:0, f:13.5, s:0, n:0 },
-    { group:"양념·기름", name:"올리브유", unit:"팬에 한 바퀴(약 10ml)", kcal:80, p:0, c:0, f:9, s:0, n:0, est:true },
-    { group:"양념·기름", name:"참기름", unit:"1작은술(5ml)", kcal:45, p:0, c:0, f:5, s:0, n:0 },
-    { group:"양념·기름", name:"참기름", unit:"1큰술(15ml)", kcal:130, p:0, c:0, f:14.5, s:0, n:0 },
-    { group:"양념·기름", name:"다진마늘(냉동 큐브)", unit:"작은 것 1개(5g)", kcal:7, p:0.3, c:1.5, f:0, s:0.1, n:1, est:true },
-    { group:"양념·기름", name:"다진마늘(냉동 큐브)", unit:"작은 것 2개(10g)", kcal:14, p:0.6, c:3, f:0, s:0.2, n:2, est:true },
-    { group:"양념·기름", name:"다진마늘", unit:"1큰술(15g)", kcal:20, p:0.9, c:4.5, f:0.1, s:0.2, n:2, est:true },
+    { group:"양념·기름", name:"올리브유", unit:"1작은술(5ml)", kcal:40, p:0, c:0, f:4.5, s:0, n:0, fb:0 },
+    { group:"양념·기름", name:"올리브유", unit:"1큰술(15ml)", kcal:120, p:0, c:0, f:13.5, s:0, n:0, fb:0 },
+    { group:"양념·기름", name:"올리브유", unit:"팬에 한 바퀴(약 10ml)", kcal:80, p:0, c:0, f:9, s:0, n:0, fb:0, est:true },
+    { group:"양념·기름", name:"참기름", unit:"1작은술(5ml)", kcal:45, p:0, c:0, f:5, s:0, n:0, fb:0 },
+    { group:"양념·기름", name:"참기름", unit:"1큰술(15ml)", kcal:130, p:0, c:0, f:14.5, s:0, n:0, fb:0 },
+    { group:"양념·기름", name:"다진마늘(냉동 큐브)", unit:"작은 것 1개(5g)", kcal:7, p:0.3, c:1.5, f:0, s:0.1, n:1, fb:0.1, est:true },
+    { group:"양념·기름", name:"다진마늘(냉동 큐브)", unit:"작은 것 2개(10g)", kcal:14, p:0.6, c:3, f:0, s:0.2, n:2, fb:0.2, est:true },
+    { group:"양념·기름", name:"다진마늘", unit:"1큰술(15g)", kcal:20, p:0.9, c:4.5, f:0.1, s:0.2, n:2, fb:0.3, est:true },
 
     // 구이류 (가끔)
-    { group:"구이류(가끔)", name:"우삼겹 구이", unit:"100g", kcal:330, p:19, c:0, f:27.5, s:0, n:60 },
-    { group:"구이류(가끔)", name:"삼겹살 구이", unit:"100g", kcal:330, p:22.7, c:0, f:33, s:0, n:80 },
-    { group:"구이류(가끔)", name:"목살 구이", unit:"100g", kcal:260, p:24.5, c:0, f:17.5, s:0, n:70 },
+    { group:"구이류(가끔)", name:"우삼겹 구이", unit:"100g", kcal:330, p:19, c:0, f:27.5, s:0, n:60, fb:0 },
+    { group:"구이류(가끔)", name:"삼겹살 구이", unit:"100g", kcal:330, p:22.7, c:0, f:33, s:0, n:80, fb:0 },
+    { group:"구이류(가끔)", name:"목살 구이", unit:"100g", kcal:260, p:24.5, c:0, f:17.5, s:0, n:70, fb:0 },
 
     // 소스 (저당/디핑) - 1큰술(15g) 기준
     /* 소스 계량 기준: 1작은술 = 5g(5ml), 1큰술 = 15g(15ml), 1스푼(밥숟가락 수북) ≈ 10g
        스푼으로 대충 뜨면 실제로는 표기보다 조금 더 들어가는 경우가 많아요. */
-    { group:"소스(저당·디핑)", name:"저당 데리야끼소스(비비드키친)", unit:"1작은술(5g)", kcal:2, p:0.2, c:1.3, f:0, s:0.2, n:103 },
-    { group:"소스(저당·디핑)", name:"저당 데리야끼소스(비비드키친)", unit:"1큰술(15g)", kcal:6, p:0.5, c:3.8, f:0.1, s:0.5, n:309 },
-    { group:"소스(저당·디핑)", name:"저당 스위트칠리소스(비비드키친)", unit:"1작은술(5g)", kcal:2, p:0.1, c:0.9, f:0, s:0.1, n:52 },
-    { group:"소스(저당·디핑)", name:"저당 스위트칠리소스(비비드키친)", unit:"1큰술(15g)", kcal:5, p:0.2, c:2.6, f:0, s:0.2, n:157 },
-    { group:"소스(저당·디핑)", name:"저칼로리 토마토케첩(비비드키친)", unit:"1작은술(5g)", kcal:2, p:0.1, c:0.8, f:0, s:0.2, n:49 },
-    { group:"소스(저당·디핑)", name:"저칼로리 토마토케첩(비비드키친)", unit:"1큰술(15g)", kcal:5, p:0.3, c:2.4, f:0, s:0.5, n:147 },
-    { group:"소스(저당·디핑)", name:"저당 굴소스(비비드키친)", unit:"1작은술(5g)", kcal:4, p:0.2, c:0.8, f:0, s:0.2, n:157, est:true },
-    { group:"소스(저당·디핑)", name:"저당 굴소스(비비드키친)", unit:"1큰술(15g)", kcal:11, p:0.5, c:2.3, f:0, s:0.6, n:470, est:true },
-    { group:"소스(저당·디핑)", name:"진간장", unit:"1작은술(5g)", kcal:3, p:0.4, c:0.5, f:0, s:0.1, n:307, est:true },
-    { group:"소스(저당·디핑)", name:"진간장", unit:"1큰술(15g)", kcal:10, p:1.2, c:1.4, f:0, s:0.4, n:920, est:true },
-    { group:"소스(저당·디핑)", name:"하프 마요네즈(오뚜기)", unit:"1작은술(5g)", kcal:20, p:0.1, c:0.9, f:1.9, s:0.2, n:32 },
-    { group:"소스(저당·디핑)", name:"하프 마요네즈(오뚜기)", unit:"1큰술(15g)", kcal:60, p:0.2, c:2.7, f:5.6, s:0.6, n:95 },
+    { group:"소스(저당·디핑)", name:"저당 데리야끼소스(비비드키친)", unit:"1작은술(5g)", kcal:2, p:0.2, c:1.3, f:0, s:0.2, n:103, fb:0.3 },
+    { group:"소스(저당·디핑)", name:"저당 데리야끼소스(비비드키친)", unit:"1큰술(15g)", kcal:6, p:0.5, c:3.8, f:0.1, s:0.5, n:309, fb:1 },
+    { group:"소스(저당·디핑)", name:"저당 스위트칠리소스(비비드키친)", unit:"1작은술(5g)", kcal:2, p:0.1, c:0.9, f:0, s:0.1, n:52, fb:0.3 },
+    { group:"소스(저당·디핑)", name:"저당 스위트칠리소스(비비드키친)", unit:"1큰술(15g)", kcal:5, p:0.2, c:2.6, f:0, s:0.2, n:157, fb:1 },
+    { group:"소스(저당·디핑)", name:"저칼로리 토마토케첩(비비드키친)", unit:"1작은술(5g)", kcal:2, p:0.1, c:0.8, f:0, s:0.2, n:49, fb:0.2 },
+    { group:"소스(저당·디핑)", name:"저칼로리 토마토케첩(비비드키친)", unit:"1큰술(15g)", kcal:5, p:0.3, c:2.4, f:0, s:0.5, n:147, fb:0.6 },
+    { group:"소스(저당·디핑)", name:"저당 굴소스(비비드키친)", unit:"1작은술(5g)", kcal:4, p:0.2, c:0.8, f:0, s:0.2, n:157, fb:0.2, est:true },
+    { group:"소스(저당·디핑)", name:"저당 굴소스(비비드키친)", unit:"1큰술(15g)", kcal:11, p:0.5, c:2.3, f:0, s:0.6, n:470, fb:0.5, est:true },
+    { group:"소스(저당·디핑)", name:"진간장", unit:"1작은술(5g)", kcal:3, p:0.4, c:0.5, f:0, s:0.1, n:307, fb:0, est:true },
+    { group:"소스(저당·디핑)", name:"진간장", unit:"1큰술(15g)", kcal:10, p:1.2, c:1.4, f:0, s:0.4, n:920, fb:0, est:true },
+    { group:"소스(저당·디핑)", name:"하프 마요네즈(오뚜기)", unit:"1작은술(5g)", kcal:20, p:0.1, c:0.9, f:1.9, s:0.2, n:32, fb:0 },
+    { group:"소스(저당·디핑)", name:"하프 마요네즈(오뚜기)", unit:"1큰술(15g)", kcal:60, p:0.2, c:2.7, f:5.6, s:0.6, n:95, fb:0 },
 
     // ===== 한식 (집밥·백반) — 1인분 기준 추정치 =====
-    { group:"한식·집밥", name:"김치찌개", unit:"1인분", kcal:290, p:18, c:12, f:18, s:4, n:1600, est:true },
-    { group:"한식·집밥", name:"된장찌개", unit:"1인분", kcal:180, p:13, c:12, f:8, s:4, n:1500, est:true },
-    { group:"한식·집밥", name:"순두부찌개", unit:"1인분", kcal:250, p:17, c:11, f:15, s:4, n:1500, est:true },
-    { group:"한식·집밥", name:"부대찌개", unit:"1인분", kcal:520, p:26, c:38, f:29, s:8, n:2300, est:true },
-    { group:"한식·집밥", name:"미역국", unit:"1인분", kcal:110, p:9, c:5, f:6, s:1, n:900, est:true },
-    { group:"한식·집밥", name:"북엇국", unit:"1인분", kcal:100, p:12, c:5, f:3, s:1, n:1000, est:true },
-    { group:"한식·집밥", name:"계란찜", unit:"1인분", kcal:150, p:12, c:3, f:10, s:1, n:600, est:true },
-    { group:"한식·집밥", name:"제육볶음", unit:"1인분", kcal:520, p:30, c:20, f:35, s:12, n:1400, est:true },
-    { group:"한식·집밥", name:"불고기", unit:"1인분", kcal:400, p:30, c:18, f:22, s:12, n:1200, est:true },
-    { group:"한식·집밥", name:"닭볶음탕", unit:"1인분", kcal:480, p:35, c:25, f:26, s:9, n:1500, est:true },
-    { group:"한식·집밥", name:"고등어구이", unit:"1토막", kcal:230, p:21, c:0, f:16, s:0, n:600, est:true },
-    { group:"한식·집밥", name:"김치", unit:"1접시(50g)", kcal:15, p:1, c:2.4, f:0.2, s:1.2, n:450, est:true },
-    { group:"한식·집밥", name:"나물 반찬", unit:"1접시(60g)", kcal:50, p:2, c:4, f:3, s:1, n:250, est:true },
-    { group:"한식·집밥", name:"김(조미)", unit:"1봉(5g)", kcal:25, p:1.5, c:1, f:1.8, s:0, n:120, est:true },
+    { group:"한식·집밥", name:"김치찌개", unit:"1인분", kcal:290, p:18, c:12, f:18, s:4, n:1600, fb:3, est:true },
+    { group:"한식·집밥", name:"된장찌개", unit:"1인분", kcal:180, p:13, c:12, f:8, s:4, n:1500, fb:3.5, est:true },
+    { group:"한식·집밥", name:"순두부찌개", unit:"1인분", kcal:250, p:17, c:11, f:15, s:4, n:1500, fb:3, est:true },
+    { group:"한식·집밥", name:"부대찌개", unit:"1인분", kcal:520, p:26, c:38, f:29, s:8, n:2300, fb:4, est:true },
+    { group:"한식·집밥", name:"미역국", unit:"1인분", kcal:110, p:9, c:5, f:6, s:1, n:900, fb:2, est:true },
+    { group:"한식·집밥", name:"북엇국", unit:"1인분", kcal:100, p:12, c:5, f:3, s:1, n:1000, fb:1, est:true },
+    { group:"한식·집밥", name:"계란찜", unit:"1인분", kcal:150, p:12, c:3, f:10, s:1, n:600, fb:0.3, est:true },
+    { group:"한식·집밥", name:"제육볶음", unit:"1인분", kcal:520, p:30, c:20, f:35, s:12, n:1400, fb:2.5, est:true },
+    { group:"한식·집밥", name:"불고기", unit:"1인분", kcal:400, p:30, c:18, f:22, s:12, n:1200, fb:2, est:true },
+    { group:"한식·집밥", name:"닭볶음탕", unit:"1인분", kcal:480, p:35, c:25, f:26, s:9, n:1500, fb:3.5, est:true },
+    { group:"한식·집밥", name:"고등어구이", unit:"1토막", kcal:230, p:21, c:0, f:16, s:0, n:600, fb:0, est:true },
+    { group:"한식·집밥", name:"김치", unit:"1접시(50g)", kcal:15, p:1, c:2.4, f:0.2, s:1.2, n:450, fb:1.2, est:true },
+    { group:"한식·집밥", name:"나물 반찬", unit:"1접시(60g)", kcal:50, p:2, c:4, f:3, s:1, n:250, fb:1.8, est:true },
+    { group:"한식·집밥", name:"김(조미)", unit:"1봉(5g)", kcal:25, p:1.5, c:1, f:1.8, s:0, n:120, fb:1.5, est:true },
 
     // ===== 외식 (식당) =====
-    { group:"외식·식당", name:"김치찌개 백반", unit:"1인분", kcal:700, p:28, c:85, f:26, s:6, n:2400, est:true },
-    { group:"외식·식당", name:"제육덮밥", unit:"1인분", kcal:780, p:32, c:95, f:29, s:14, n:1900, est:true },
-    { group:"외식·식당", name:"비빔밥", unit:"1인분", kcal:600, p:20, c:90, f:16, s:8, n:1300, est:true },
-    { group:"외식·식당", name:"돼지국밥", unit:"1인분", kcal:620, p:35, c:65, f:22, s:3, n:2200, est:true },
-    { group:"외식·식당", name:"순대국밥", unit:"1인분", kcal:600, p:32, c:62, f:23, s:3, n:2300, est:true },
-    { group:"외식·식당", name:"설렁탕", unit:"1인분", kcal:520, p:32, c:58, f:16, s:2, n:2000, est:true },
-    { group:"외식·식당", name:"삼계탕", unit:"1인분", kcal:800, p:60, c:50, f:38, s:2, n:1600, est:true },
-    { group:"외식·식당", name:"냉면(물)", unit:"1인분", kcal:550, p:20, c:95, f:8, s:12, n:2100, est:true },
-    { group:"외식·식당", name:"냉면(비빔)", unit:"1인분", kcal:600, p:20, c:105, f:9, s:20, n:2200, est:true },
-    { group:"외식·식당", name:"칼국수", unit:"1인분", kcal:550, p:20, c:85, f:12, s:5, n:2200, est:true },
-    { group:"외식·식당", name:"김밥(기본)", unit:"1줄", kcal:480, p:14, c:75, f:13, s:5, n:900, est:true },
-    { group:"외식·식당", name:"참치김밥", unit:"1줄", kcal:560, p:18, c:75, f:20, s:5, n:1000, est:true },
-    { group:"외식·식당", name:"라면", unit:"1인분", kcal:500, p:11, c:75, f:17, s:5, n:1900, est:true },
-    { group:"외식·식당", name:"떡볶이", unit:"1인분", kcal:520, p:10, c:95, f:11, s:22, n:1600, est:true },
-    { group:"외식·식당", name:"돈까스", unit:"1인분", kcal:900, p:38, c:80, f:48, s:8, n:1700, est:true },
-    { group:"외식·식당", name:"김치볶음밥", unit:"1인분", kcal:650, p:16, c:95, f:22, s:6, n:1700, est:true },
-    { group:"외식·식당", name:"쌈밥·고깃집 1인분", unit:"1인분", kcal:900, p:45, c:60, f:52, s:8, n:2000, est:true },
-    { group:"외식·식당", name:"마라탕(보통)", unit:"1인분", kcal:700, p:28, c:55, f:40, s:6, n:2500, est:true },
-    { group:"외식·식당", name:"짜장면", unit:"1인분", kcal:700, p:18, c:110, f:20, s:14, n:1800, est:true },
-    { group:"외식·식당", name:"짬뽕", unit:"1인분", kcal:680, p:28, c:90, f:22, s:8, n:2800, est:true },
-    { group:"외식·식당", name:"탕수육(소, 1/3)", unit:"1/3접시", kcal:450, p:18, c:45, f:22, s:15, n:600, est:true },
-    { group:"외식·식당", name:"초밥", unit:"10피스", kcal:600, p:32, c:90, f:10, s:10, n:1300, est:true },
-    { group:"외식·식당", name:"쌀국수", unit:"1인분", kcal:480, p:25, c:70, f:9, s:8, n:1900, est:true },
-    { group:"외식·식당", name:"파스타(크림)", unit:"1인분", kcal:900, p:25, c:90, f:48, s:8, n:1500, est:true },
-    { group:"외식·식당", name:"파스타(토마토)", unit:"1인분", kcal:650, p:20, c:95, f:20, s:12, n:1400, est:true },
+    { group:"외식·식당", name:"김치찌개 백반", unit:"1인분", kcal:700, p:28, c:85, f:26, s:6, n:2400, fb:5, est:true },
+    { group:"외식·식당", name:"제육덮밥", unit:"1인분", kcal:780, p:32, c:95, f:29, s:14, n:1900, fb:3.5, est:true },
+    { group:"외식·식당", name:"비빔밥", unit:"1인분", kcal:600, p:20, c:90, f:16, s:8, n:1300, fb:5.5, est:true },
+    { group:"외식·식당", name:"돼지국밥", unit:"1인분", kcal:620, p:35, c:65, f:22, s:3, n:2200, fb:2.5, est:true },
+    { group:"외식·식당", name:"순대국밥", unit:"1인분", kcal:600, p:32, c:62, f:23, s:3, n:2300, fb:3, est:true },
+    { group:"외식·식당", name:"설렁탕", unit:"1인분", kcal:520, p:32, c:58, f:16, s:2, n:2000, fb:1.5, est:true },
+    { group:"외식·식당", name:"삼계탕", unit:"1인분", kcal:800, p:60, c:50, f:38, s:2, n:1600, fb:2, est:true },
+    { group:"외식·식당", name:"냉면(물)", unit:"1인분", kcal:550, p:20, c:95, f:8, s:12, n:2100, fb:4, est:true },
+    { group:"외식·식당", name:"냉면(비빔)", unit:"1인분", kcal:600, p:20, c:105, f:9, s:20, n:2200, fb:4.5, est:true },
+    { group:"외식·식당", name:"칼국수", unit:"1인분", kcal:550, p:20, c:85, f:12, s:5, n:2200, fb:3.5, est:true },
+    { group:"외식·식당", name:"김밥(기본)", unit:"1줄", kcal:480, p:14, c:75, f:13, s:5, n:900, fb:3, est:true },
+    { group:"외식·식당", name:"참치김밥", unit:"1줄", kcal:560, p:18, c:75, f:20, s:5, n:1000, fb:3.2, est:true },
+    { group:"외식·식당", name:"라면", unit:"1인분", kcal:500, p:11, c:75, f:17, s:5, n:1900, fb:3, est:true },
+    { group:"외식·식당", name:"떡볶이", unit:"1인분", kcal:520, p:10, c:95, f:11, s:22, n:1600, fb:3, est:true },
+    { group:"외식·식당", name:"돈까스", unit:"1인분", kcal:900, p:38, c:80, f:48, s:8, n:1700, fb:3, est:true },
+    { group:"외식·식당", name:"김치볶음밥", unit:"1인분", kcal:650, p:16, c:95, f:22, s:6, n:1700, fb:3, est:true },
+    { group:"외식·식당", name:"쌈밥·고깃집 1인분", unit:"1인분", kcal:900, p:45, c:60, f:52, s:8, n:2000, fb:6, est:true },
+    { group:"외식·식당", name:"마라탕(보통)", unit:"1인분", kcal:700, p:28, c:55, f:40, s:6, n:2500, fb:5, est:true },
+    { group:"외식·식당", name:"짜장면", unit:"1인분", kcal:700, p:18, c:110, f:20, s:14, n:1800, fb:4.5, est:true },
+    { group:"외식·식당", name:"짬뽕", unit:"1인분", kcal:680, p:28, c:90, f:22, s:8, n:2800, fb:4.5, est:true },
+    { group:"외식·식당", name:"탕수육(소, 1/3)", unit:"1/3접시", kcal:450, p:18, c:45, f:22, s:15, n:600, fb:1.5, est:true },
+    { group:"외식·식당", name:"초밥", unit:"10피스", kcal:600, p:32, c:90, f:10, s:10, n:1300, fb:2, est:true },
+    { group:"외식·식당", name:"쌀국수", unit:"1인분", kcal:480, p:25, c:70, f:9, s:8, n:1900, fb:2.5, est:true },
+    { group:"외식·식당", name:"파스타(크림)", unit:"1인분", kcal:900, p:25, c:90, f:48, s:8, n:1500, fb:4, est:true },
+    { group:"외식·식당", name:"파스타(토마토)", unit:"1인분", kcal:650, p:20, c:95, f:20, s:12, n:1400, fb:5, est:true },
 
     // ===== 배달·패스트푸드 =====
-    { group:"배달·패스트푸드", name:"후라이드 치킨", unit:"1조각", kcal:200, p:14, c:9, f:12, s:0.5, n:350, est:true },
-    { group:"배달·패스트푸드", name:"후라이드 치킨 반마리", unit:"반마리", kcal:800, p:56, c:36, f:48, s:2, n:1400, est:true },
-    { group:"배달·패스트푸드", name:"양념치킨", unit:"1조각", kcal:250, p:13, c:20, f:13, s:9, n:450, est:true },
-    { group:"배달·패스트푸드", name:"양념치킨 반마리", unit:"반마리", kcal:1000, p:52, c:80, f:52, s:36, n:1800, est:true },
-    { group:"배달·패스트푸드", name:"피자", unit:"1조각", kcal:280, p:12, c:32, f:11, s:4, n:600, est:true },
-    { group:"배달·패스트푸드", name:"족발", unit:"200g", kcal:480, p:42, c:2, f:34, s:1, n:1200, est:true },
-    { group:"배달·패스트푸드", name:"보쌈", unit:"200g", kcal:440, p:40, c:2, f:30, s:1, n:1000, est:true },
-    { group:"배달·패스트푸드", name:"곱창볶음", unit:"1인분", kcal:700, p:30, c:30, f:50, s:8, n:1800, est:true },
-    { group:"배달·패스트푸드", name:"햄버거 단품", unit:"1개", kcal:550, p:26, c:45, f:29, s:9, n:1000, est:true },
-    { group:"배달·패스트푸드", name:"햄버거 세트(감튀+콜라)", unit:"1세트", kcal:1050, p:30, c:120, f:48, s:45, n:1500, est:true },
-    { group:"배달·패스트푸드", name:"감자튀김(중)", unit:"1개", kcal:340, p:4, c:44, f:17, s:0.5, n:280, est:true },
-    { group:"배달·패스트푸드", name:"샌드위치(서브웨이 15cm)", unit:"1개", kcal:380, p:22, c:46, f:11, s:7, n:900, est:true },
-    { group:"배달·패스트푸드", name:"샐러드(닭가슴살, 드레싱 포함)", unit:"1개", kcal:350, p:28, c:20, f:17, s:6, n:800, est:true },
+    { group:"배달·패스트푸드", name:"후라이드 치킨", unit:"1조각", kcal:200, p:14, c:9, f:12, s:0.5, n:350, fb:0.3, est:true },
+    { group:"배달·패스트푸드", name:"후라이드 치킨 반마리", unit:"반마리", kcal:800, p:56, c:36, f:48, s:2, n:1400, fb:1.5, est:true },
+    { group:"배달·패스트푸드", name:"양념치킨", unit:"1조각", kcal:250, p:13, c:20, f:13, s:9, n:450, fb:0.5, est:true },
+    { group:"배달·패스트푸드", name:"양념치킨 반마리", unit:"반마리", kcal:1000, p:52, c:80, f:52, s:36, n:1800, fb:2, est:true },
+    { group:"배달·패스트푸드", name:"피자", unit:"1조각", kcal:280, p:12, c:32, f:11, s:4, n:600, fb:2, est:true },
+    { group:"배달·패스트푸드", name:"족발", unit:"200g", kcal:480, p:42, c:2, f:34, s:1, n:1200, fb:0, est:true },
+    { group:"배달·패스트푸드", name:"보쌈", unit:"200g", kcal:440, p:40, c:2, f:30, s:1, n:1000, fb:1, est:true },
+    { group:"배달·패스트푸드", name:"곱창볶음", unit:"1인분", kcal:700, p:30, c:30, f:50, s:8, n:1800, fb:3, est:true },
+    { group:"배달·패스트푸드", name:"햄버거 단품", unit:"1개", kcal:550, p:26, c:45, f:29, s:9, n:1000, fb:3, est:true },
+    { group:"배달·패스트푸드", name:"햄버거 세트(감튀+콜라)", unit:"1세트", kcal:1050, p:30, c:120, f:48, s:45, n:1500, fb:6, est:true },
+    { group:"배달·패스트푸드", name:"감자튀김(중)", unit:"1개", kcal:340, p:4, c:44, f:17, s:0.5, n:280, fb:4, est:true },
+    { group:"배달·패스트푸드", name:"샌드위치(서브웨이 15cm)", unit:"1개", kcal:380, p:22, c:46, f:11, s:7, n:900, fb:4, est:true },
+    { group:"배달·패스트푸드", name:"샐러드(닭가슴살, 드레싱 포함)", unit:"1개", kcal:350, p:28, c:20, f:17, s:6, n:800, fb:4, est:true },
 
     // ===== 음료·주류 =====
-    { group:"음료·주류", name:"아메리카노", unit:"1잔", kcal:10, p:0.5, c:2, f:0, s:0, n:10 },
-    { group:"음료·주류", name:"카페라떼", unit:"1잔", kcal:180, p:9, c:16, f:9, s:15, n:120, est:true },
-    { group:"음료·주류", name:"콜라", unit:"1캔(250ml)", kcal:105, p:0, c:27, f:0, s:27, n:12 },
-    { group:"음료·주류", name:"제로 콜라", unit:"1캔(250ml)", kcal:0, p:0, c:0, f:0, s:0, n:20 },
-    { group:"음료·주류", name:"소주", unit:"1병(360ml)", kcal:408, p:0, c:0, f:0, s:0, n:0 },
-    { group:"음료·주류", name:"소주", unit:"1잔(50ml)", kcal:57, p:0, c:0, f:0, s:0, n:0 },
-    { group:"음료·주류", name:"맥주", unit:"1캔(500ml)", kcal:210, p:1.5, c:16, f:0, s:0, n:15 },
-    { group:"음료·주류", name:"막걸리", unit:"1병(750ml)", kcal:340, p:11, c:53, f:0, s:20, n:80, est:true },
-    { group:"음료·주류", name:"하이볼·소맥 1잔", unit:"1잔", kcal:150, p:0, c:8, f:0, s:8, n:10, est:true },
+    { group:"음료·주류", name:"아메리카노", unit:"1잔", kcal:10, p:0.5, c:2, f:0, s:0, n:10, fb:0 },
+    { group:"음료·주류", name:"카페라떼", unit:"1잔", kcal:180, p:9, c:16, f:9, s:15, n:120, fb:0, est:true },
+    { group:"음료·주류", name:"콜라", unit:"1캔(250ml)", kcal:105, p:0, c:27, f:0, s:27, n:12, fb:0 },
+    { group:"음료·주류", name:"제로 콜라", unit:"1캔(250ml)", kcal:0, p:0, c:0, f:0, s:0, n:20, fb:0 },
+    { group:"음료·주류", name:"소주", unit:"1병(360ml)", kcal:408, p:0, c:0, f:0, s:0, n:0, fb:0 },
+    { group:"음료·주류", name:"소주", unit:"1잔(50ml)", kcal:57, p:0, c:0, f:0, s:0, n:0, fb:0 },
+    { group:"음료·주류", name:"맥주", unit:"1캔(500ml)", kcal:210, p:1.5, c:16, f:0, s:0, n:15, fb:0 },
+    { group:"음료·주류", name:"막걸리", unit:"1병(750ml)", kcal:340, p:11, c:53, f:0, s:20, n:80, fb:0, est:true },
+    { group:"음료·주류", name:"하이볼·소맥 1잔", unit:"1잔", kcal:150, p:0, c:8, f:0, s:8, n:10, fb:0, est:true },
 
     // ===== 대충 기록 =====
-    { group:"대충 기록", name:"[대충] 가벼운 한 끼", unit:"추정", kcal:400, p:20, c:45, f:14, s:6, n:900, est:true },
-    { group:"대충 기록", name:"[대충] 보통 한 끼", unit:"추정", kcal:700, p:30, c:80, f:26, s:10, n:1500, est:true },
-    { group:"대충 기록", name:"[대충] 기름진 한 끼", unit:"추정", kcal:1050, p:38, c:95, f:52, s:16, n:2200, est:true },
-    { group:"대충 기록", name:"[대충] 가벼운 간식", unit:"추정", kcal:150, p:4, c:20, f:6, s:10, n:150, est:true },
-    { group:"대충 기록", name:"[대충] 든든한 간식", unit:"추정", kcal:350, p:8, c:42, f:16, s:20, n:350, est:true },
-    { group:"대충 기록", name:"[대충] 술자리 (가볍게)", unit:"추정", kcal:800, p:25, c:60, f:35, s:12, n:2000, est:true },
-    { group:"대충 기록", name:"[대충] 술자리 (제대로)", unit:"추정", kcal:1600, p:45, c:120, f:75, s:25, n:3500, est:true },
+    { group:"대충 기록", name:"[대충] 가벼운 한 끼", unit:"추정", kcal:400, p:20, c:45, f:14, s:6, n:900, fb:4, est:true },
+    { group:"대충 기록", name:"[대충] 보통 한 끼", unit:"추정", kcal:700, p:30, c:80, f:26, s:10, n:1500, fb:5, est:true },
+    { group:"대충 기록", name:"[대충] 기름진 한 끼", unit:"추정", kcal:1050, p:38, c:95, f:52, s:16, n:2200, fb:4, est:true },
+    { group:"대충 기록", name:"[대충] 가벼운 간식", unit:"추정", kcal:150, p:4, c:20, f:6, s:10, n:150, fb:2, est:true },
+    { group:"대충 기록", name:"[대충] 든든한 간식", unit:"추정", kcal:350, p:8, c:42, f:16, s:20, n:350, fb:2, est:true },
+    { group:"대충 기록", name:"[대충] 술자리 (가볍게)", unit:"추정", kcal:800, p:25, c:60, f:35, s:12, n:2000, fb:3, est:true },
+    { group:"대충 기록", name:"[대충] 술자리 (제대로)", unit:"추정", kcal:1600, p:45, c:120, f:75, s:25, n:3500, fb:5, est:true },
   ];
 
   const SUGAR_NOTE_ITEMS = new Set(["그릭요거트(PB)","저지방 우유","닭가슴살 소시지","현미 주먹밥(CU)","삼각김밥(참치마요)","고단백 도시락(닭가슴살/계란)","프로틴바"]);
@@ -1048,7 +1061,7 @@
     { name:"저녁 세트(하림+계란2+양배추+쌀밥)", meal:"저녁", items:[{name:"하림 핑크솔트 닭가슴살", unit:"100g", qty:1},{name:"계란 2개(구움/삶음)", unit:"2개", qty:1},{name:"양배추(생/찜)", unit:"100g", qty:1},{name:"쌀밥", unit:"125g", qty:1}] },
   ];
 
-  const DEFAULT_TARGETS = { kcal:2250, p:170, c:240, f:60, s:30, n:2000 };
+  const DEFAULT_TARGETS = { kcal:2250, p:170, c:240, f:60, s:30, n:2000, fb:25 };
   const DEFAULT_BODYSTATS = { weight:85, height:183, age:30, gender:"male", activity:"1.55", goal:"cut", goalWeight:81 };
 
   const pad = (n) => String(n).padStart(2,"0");
@@ -1306,8 +1319,9 @@
     return list.reduce((acc,e)=>{
       acc.kcal += e.kcal; acc.p += e.p; acc.c += e.c; acc.f += e.f;
       acc.s += (e.s||0); acc.n += (e.n||0);
+      if (e.fb == null) acc.fbUnknown += 1; else acc.fb += e.fb;
       return acc;
-    }, {kcal:0,p:0,c:0,f:0,s:0,n:0});
+    }, {kcal:0,p:0,c:0,f:0,s:0,n:0,fb:0,fbUnknown:0});
   }
 
   function barColor(pct, isProtein){
@@ -1322,6 +1336,7 @@
       { key:"p", label:"단백질", unit:"g", isProtein:true },
       { key:"c", label:"탄수화물", unit:"g" },
       { key:"f", label:"지방", unit:"g" },
+      { key:"fb", label:"식이섬유", unit:"g", isGoal:true },
       { key:"s", label:"당류", unit:"g" },
       { key:"n", label:"나트륨", unit:"mg" },
     ];
@@ -1335,6 +1350,9 @@
         const kg = Number($("weightInput") && $("weightInput").value) || bodyStats.weight || 0;
         if (kg > 0 && consumed > 0) extra = ` <span style="color:var(--muted);font-weight:400;">(${(consumed/kg).toFixed(1)}g/kg)</span>`;
       }
+      if (r.key === "fb" && t.fbUnknown){
+        extra = ` <span style="color:var(--muted);font-weight:400;">(미입력 ${t.fbUnknown}개)</span>`;
+      }
       const group = document.createElement("div");
       group.className = "bar-group";
       group.innerHTML = `
@@ -1343,7 +1361,7 @@
           <span class="num"><b>${fmt(consumed)}</b> / ${fmt(target)}${r.unit}${extra}</span>
         </div>
         <div class="bar-track">
-          <div class="bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor(pct, r.isProtein)};"></div>
+          <div class="bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor(pct, r.isProtein || r.isGoal)};"></div>
         </div>`;
       wrap.appendChild(group);
     });
@@ -1365,7 +1383,7 @@
       <div class="entry">
         <div>
           <div class="name">${(e.meal && !hideMealTag) ? `<span class="tag">${esc(e.meal)}</span>`:""}${esc(e.name)}</div>
-          <div class="meta num">P ${fmt(e.p)} · C ${fmt(e.c)} · F ${fmt(e.f)} · 당 ${fmt(e.s||0)} · Na ${fmt(e.n||0)}mg</div>
+          <div class="meta num">P ${fmt(e.p)} · C ${fmt(e.c)} · F ${fmt(e.f)}${e.fb != null ? ` · 섬유 ${fmt(e.fb)}` : ""} · 당 ${fmt(e.s||0)} · Na ${fmt(e.n||0)}mg</div>
         </div>
         <div class="right"><div class="kcal num">${fmt(e.kcal)}kcal</div></div>
         ${btns}
@@ -1971,7 +1989,7 @@
   function pushRecent(entry){
     const key = entry.name;
     recentItems = recentItems.filter(r=> r.name !== key);
-    recentItems.unshift({ name:entry.name, kcal:entry.kcal, p:entry.p, c:entry.c, f:entry.f, s:entry.s||0, n:entry.n||0, meal:entry.meal });
+    recentItems.unshift({ name:entry.name, unit:entry.unit, kcal:entry.kcal, p:entry.p, c:entry.c, f:entry.f, s:entry.s||0, n:entry.n||0, fb:entry.fb, meal:entry.meal });
     if (recentItems.length > 20) recentItems = recentItems.slice(0,20);
     saveRecent();
     renderRecentRow();
@@ -2096,6 +2114,109 @@
     setStatus("lastBackupStatus", true, "✓ 파일을 내려받았어요. 클라우드나 메신저에 한 번 올려두면 안전해요.");
   }
 
+  /* ---------- 저장소 영구화 + 자동 스냅샷 ---------- */
+  /* 사파리·크롬은 오래 안 쓴 사이트의 저장소를 통째로 지울 수 있어요.
+     persist()로 "지우지 말아달라"고 요청하고, 별도 레이어에 스냅샷도 하나 더 둡니다. */
+  const SNAPSHOT_KEY = "cuTracker::__snapshot";
+  const SNAPSHOT_MAX = 1500000;   // 1.5MB 넘으면 스냅샷 생략 (localStorage 한도 보호)
+  let persistState = "unknown";
+  let snapshotInfo = null;
+  let snapshotBusy = false;
+  let lastSnapshotAt = 0;
+
+  async function requestPersist(){
+    try{
+      if (!(navigator.storage && navigator.storage.persist)){ persistState = "unsupported"; }
+      else {
+        const already = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+        persistState = already ? "granted" : ((await navigator.storage.persist()) ? "granted" : "denied");
+      }
+    }catch(err){ persistState = "unsupported"; }
+    renderStorageInfo();
+  }
+
+  function readSnapshot(){
+    try{
+      const raw = localStorage.getItem(SNAPSHOT_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      return data && data.entries ? data : null;
+    }catch(err){ return null; }
+  }
+
+  async function saveSnapshot(force){
+    if (snapshotBusy) return;
+    if (!force && Date.now() - lastSnapshotAt < 5*60*1000) return;
+    snapshotBusy = true;
+    try{
+      const data = await collectAllData();
+      const json = JSON.stringify(data);
+      if (json.length > SNAPSHOT_MAX){
+        snapshotInfo = { skipped:true };
+      } else {
+        localStorage.setItem(SNAPSHOT_KEY, json);
+        snapshotInfo = { at: data.exportedAt, days: Object.keys(data.entries).length };
+        lastSnapshotAt = Date.now();
+      }
+    }catch(err){
+      /* 용량 부족 등 → 조용히 넘어감. 파일 백업이 진짜 안전망이에요. */
+    }finally{
+      snapshotBusy = false;
+      renderStorageInfo();
+    }
+  }
+
+  async function renderStorageInfo(){
+    const el = $("storageInfo");
+    if (!el) return;
+    let usage = "";
+    try{
+      if (navigator.storage && navigator.storage.estimate){
+        const est = await navigator.storage.estimate();
+        if (est && est.usage != null) usage = ` · 사용 중 ${(est.usage/1048576).toFixed(1)}MB`;
+      }
+    }catch(err){}
+
+    let head;
+    if (persistState === "granted") head = "🔒 영구 보관 켜짐 — 브라우저가 함부로 지우지 않아요.";
+    else if (persistState === "denied") head = "⚠️ 영구 보관이 거부됐어요. 오래 안 열면 브라우저가 기록을 지울 수 있습니다. 홈 화면에 추가해두면 승인될 확률이 올라가요.";
+    else if (persistState === "unsupported") head = "ℹ️ 이 브라우저는 영구 보관을 지원하지 않아요. 파일 백업을 자주 해주세요.";
+    else head = "저장소 상태 확인 중...";
+
+    let snap = "";
+    if (snapshotInfo && snapshotInfo.skipped) snap = " · 자동 스냅샷: 데이터가 커서 생략됨";
+    else if (snapshotInfo && snapshotInfo.at){
+      const d = new Date(snapshotInfo.at);
+      snap = ` · 자동 스냅샷: ${d.toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})} (${snapshotInfo.days}일치)`;
+    }
+    el.textContent = head + usage + snap;
+
+    const row = $("snapshotRow");
+    if (row) row.style.display = readSnapshot() ? "" : "none";
+  }
+
+  let snapRestoreArmed = false;
+  async function restoreSnapshot(){
+    const data = readSnapshot();
+    const status = $("backupStatus");
+    if (!data){ if (status) status.textContent = "복원할 자동 스냅샷이 없어요."; return; }
+    if (!snapRestoreArmed){
+      snapRestoreArmed = true;
+      const when = new Date(data.exportedAt).toLocaleString("ko-KR");
+      if (status) status.textContent = `⚠️ ${when} 시점(${Object.keys(data.entries).length}일치)으로 되돌립니다. 그 뒤에 적은 기록은 덮어씌워져요. 계속하려면 한 번 더 눌러주세요.`;
+      setTimeout(()=>{ snapRestoreArmed = false; }, 6000);
+      return;
+    }
+    snapRestoreArmed = false;
+    if (status) status.textContent = "복원하는 중...";
+    try{
+      await applyImportedData(data);
+      if (status) status.textContent = "✓ 자동 스냅샷에서 복원했어요.";
+    }catch(err){
+      if (status) status.textContent = "복원 중 오류가 발생했어요.";
+    }
+  }
+
   function checkBackupAge(){
     const el = $("lastBackupStatus");
     const banner = $("backupReminder");
@@ -2108,9 +2229,9 @@
     }
     const days = Math.round((new Date(TODAY_KEY) - new Date(lastBackup)) / 86400000);
     if (el && !el.textContent) el.textContent = days === 0 ? "마지막 백업: 오늘" : `마지막 백업: ${days}일 전`;
-    if (days >= 14){
+    if (days >= 7){
       banner.style.display = "block";
-      banner.textContent = `💾 마지막 백업이 ${days}일 전이에요. 다시 내려받아 두세요.`;
+      banner.textContent = `💾 마지막 백업이 ${days}일 전이에요. 설정 → 데이터 백업에서 파일로 한 번 내려받아 두세요.`;
     } else {
       banner.style.display = "none";
     }
@@ -2207,6 +2328,7 @@
     $("tFat").value = targets.f;
     $("tSugar").value = targets.s;
     $("tSodium").value = targets.n;
+    $("tFiber").value = targets.fb;
   }
 
   function fillBodyStatInputs(){
@@ -2253,6 +2375,7 @@
     $("cFat").value = e.f;
     $("cSugar").value = e.s||0;
     $("cSodium").value = e.n||0;
+    $("cFiber").value = e.fb||0;
     if (e.meal){
       currentMeal = e.meal;
       $("mealTags").querySelectorAll(".meal-tag").forEach(b=> b.classList.toggle("active", b.dataset.meal===e.meal));
@@ -2267,7 +2390,7 @@
     $("addCustomBtn").textContent = "추가하기";
     $("cancelEditBtn").style.display = "none";
     $("cName").value=""; $("cKcal").value=0; $("cProtein").value=0; $("cCarb").value=0;
-    $("cFat").value=0; $("cSugar").value=0; $("cSodium").value=0;
+    $("cFat").value=0; $("cSugar").value=0; $("cSodium").value=0; $("cFiber").value=0;
   }
 
   /* ---------- 콤보 빌더용 드롭다운 (그대로 유지) ---------- */
@@ -2482,6 +2605,24 @@
       wrap.appendChild(gb);
     }
 
+    const multRow = document.createElement("div");
+    multRow.className = "mult-row";
+    const MULTS = [0.5, 1, 1.5, 2, 3];
+    const multBtns = MULTS.map(mv=>{
+      const b = document.createElement("button");
+      b.className = "mult-btn";
+      b.textContent = "×" + mv;
+      b.addEventListener("click", ()=>{
+        rowQty = mv;
+        if (gramInput) gramInput.value = "";
+        rowGram = "";
+        refresh();
+      });
+      multRow.appendChild(b);
+      return b;
+    });
+    wrap.appendChild(multRow);
+
     const step = document.createElement("div");
     step.className = "stepper";
     step.style.marginTop = "10px";
@@ -2513,13 +2654,15 @@
         ? `${grams}g<small>수량 대신 그램 사용 중</small>`
         : `${rowQty}<small>${p.unit} 기준</small>`;
       macro.textContent =
-        `${fmt(p.kcal*m)}kcal · 단백질 ${fmt(p.p*m)}g · 탄수 ${fmt(p.c*m)}g · 지방 ${fmt(p.f*m)}g · 당 ${fmt((p.s||0)*m)}g · Na ${fmt((p.n||0)*m)}mg`
+        `${fmt(p.kcal*m)}kcal · 단백질 ${fmt(p.p*m)}g · 탄수 ${fmt(p.c*m)}g · 지방 ${fmt(p.f*m)}g${p.fb != null ? ` · 섬유 ${fmt(p.fb*m)}g` : ""} · 당 ${fmt((p.s||0)*m)}g · Na ${fmt((p.n||0)*m)}mg`
         + (p.est ? "  (가게마다 차이가 큰 추정치)" : "");
       addBtn.textContent = `${fmt(p.kcal*m)}kcal 담기`;
       const isFav = favorites.includes(presetId(p));
       star.textContent = isFav ? "★" : "☆";
       star.classList.toggle("active", isFav);
       minus.disabled = !(g && grams) && rowQty <= 0.5;
+      const usingGram = !!(g && grams);
+      multBtns.forEach((b,i)=> b.classList.toggle("active", !usingGram && MULTS[i] === rowQty));
     }
 
     minus.addEventListener("click", ()=>{ rowQty = Math.max(0.5, Math.round((rowQty-0.5)*10)/10); if (gramInput) gramInput.value = ""; rowGram=""; refresh(); });
@@ -2556,13 +2699,15 @@
       const r = (v)=> Math.round((v||0) * existing.qty * 10)/10;
       existing.kcal = r(per.kcal); existing.p = r(per.p); existing.c = r(per.c);
       existing.f = r(per.f); existing.s = r(per.s); existing.n = r(per.n);
+      existing.fb = per.fb == null ? undefined : Math.round(per.fb * existing.qty * 10)/10;
       return existing;
     }
     const r = (v)=> Math.round((v||0) * qty * 10)/10;
     const entry = {
       base: baseName, qty,
       name: `${baseName} x${qty}`,
-      kcal: r(per.kcal), p: r(per.p), c: r(per.c), f: r(per.f), s: r(per.s), n: r(per.n)
+      kcal: r(per.kcal), p: r(per.p), c: r(per.c), f: r(per.f), s: r(per.s), n: r(per.n),
+      fb: per.fb == null ? undefined : r(per.fb)
     };
     addEntry(entry);
     return entry;
@@ -2576,7 +2721,7 @@
     buzz();
     bumpUse(p);
     const entry = mergeOrAdd(p.name, qty, p);
-    pushRecent({ name:p.name, unit:p.unit, kcal:p.kcal, p:p.p, c:p.c, f:p.f, s:p.s||0, n:p.n||0, meal:currentMeal });
+    pushRecent({ name:p.name, unit:p.unit, kcal:p.kcal, p:p.p, c:p.c, f:p.f, s:p.s||0, n:p.n||0, fb:p.fb, meal:currentMeal });
     renderToday();
     saveEntries();
     refreshWeekAvg();
@@ -2593,9 +2738,9 @@
     const m = grams / g;
     const r = (v)=> Math.round((v||0) * m * 10)/10;
     bumpUse(p);
-    const entry = { gram:true, name:`${p.name} ${grams}g`, kcal:r(p.kcal), p:r(p.p), c:r(p.c), f:r(p.f), s:r(p.s), n:r(p.n) };
+    const entry = { gram:true, name:`${p.name} ${grams}g`, kcal:r(p.kcal), p:r(p.p), c:r(p.c), f:r(p.f), s:r(p.s), n:r(p.n), fb: p.fb == null ? undefined : r(p.fb) };
     addEntry(entry);
-    pushRecent({ name:p.name, unit:p.unit, kcal:p.kcal, p:p.p, c:p.c, f:p.f, s:p.s||0, n:p.n||0, meal:currentMeal });
+    pushRecent({ name:p.name, unit:p.unit, kcal:p.kcal, p:p.p, c:p.c, f:p.f, s:p.s||0, n:p.n||0, fb:p.fb, meal:currentMeal });
     renderToday();
     saveEntries();
     refreshWeekAvg();
@@ -2631,7 +2776,7 @@
         btn.innerHTML = `${label}<small>약 ${p.kcal}kcal</small><small>${g.subs[i]||""}</small>`;
         btn.addEventListener("click", ()=>{
           bumpUse(p);
-          addEntryAndSave({ name:`${label} (추정)`, kcal:p.kcal, p:p.p, c:p.c, f:p.f, s:p.s||0, n:p.n||0 });
+          addEntryAndSave({ name:`${label} (추정)`, kcal:p.kcal, p:p.p, c:p.c, f:p.f, s:p.s||0, n:p.n||0, fb:p.fb });
         });
         row.appendChild(btn);
       });
@@ -2767,7 +2912,7 @@
     combo.items.forEach(it=>{
       const p = allPresets().find(x=> x.name===it.name && x.unit===it.unit);
       if (!p) return;
-      addEntry({ name:`${p.name} x${it.qty}`, kcal:p.kcal*it.qty, p:p.p*it.qty, c:p.c*it.qty, f:p.f*it.qty, s:(p.s||0)*it.qty, n:(p.n||0)*it.qty }, combo.meal);
+      addEntry({ name:`${p.name} x${it.qty}`, kcal:p.kcal*it.qty, p:p.p*it.qty, c:p.c*it.qty, f:p.f*it.qty, s:(p.s||0)*it.qty, n:(p.n||0)*it.qty, fb: p.fb == null ? undefined : Math.round(p.fb*it.qty*10)/10 }, combo.meal);
     });
     renderToday();
     saveEntries();
@@ -2985,6 +3130,42 @@
     });
     wrap.appendChild(shareBtn);
 
+    const imgBtn = document.createElement("button");
+    imgBtn.className = "btn-add btn-secondary";
+    imgBtn.textContent = "🖼 카드 이미지로 만들기";
+    imgBtn.addEventListener("click", async ()=>{
+      const original = imgBtn.textContent;
+      imgBtn.textContent = "만드는 중...";
+      imgBtn.disabled = true;
+      try{
+        const canvas = drawWeeklyCard({
+          last7, logged7, avgKcal, avgP, gPerKg, onTarget, proteinHit, avgWater, waterDays,
+          avgFiber: logged7.reduce((s,d)=> s + (d.totals.fb||0), 0) / logged7.length
+        });
+        const blob = await new Promise(res=> canvas.toBlob(res, "image/png"));
+        if (!blob) throw new Error("blob 실패");
+        const file = new File([blob], `식단요약_${TODAY_KEY}.png`, { type:"image/png" });
+        if (navigator.canShare && navigator.canShare({ files:[file] }) && navigator.share){
+          await navigator.share({ files:[file], title:"식단 주간 요약" });
+          imgBtn.textContent = original;
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = file.name;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(()=> URL.revokeObjectURL(url), 3000);
+          imgBtn.textContent = "✓ 이미지를 저장했어요";
+          setTimeout(()=>{ imgBtn.textContent = original; }, 2500);
+        }
+      }catch(err){
+        imgBtn.textContent = (err && err.name === "AbortError") ? original : "이미지를 만들지 못했어요";
+        if (!(err && err.name === "AbortError")) setTimeout(()=>{ imgBtn.textContent = original; }, 2500);
+      }finally{
+        imgBtn.disabled = false;
+      }
+    });
+    wrap.appendChild(imgBtn);
+
     // 요일별 패턴 (최근 4주)
     const DOW = ["일","월","화","수","목","금","토"];
     const byDow = DOW.map((_,i)=>{
@@ -3045,10 +3226,134 @@
       wrap.appendChild(mkInsight("", `칼로리가 가장 몰리는 끼니는 <b>${top.m}</b>(평균 ${fmt(top.v)}kcal)이에요. 줄일 곳을 찾는다면 여기부터 보세요.`));
     }
 
+    const fbDays = logged7.filter(d=> d.totals.fb > 0);
+    if (fbDays.length >= 2){
+      const avgFb = fbDays.reduce((s,d)=> s + d.totals.fb, 0) / fbDays.length;
+      wrap.appendChild(mkInsight(avgFb >= targets.fb ? "good" : "warn",
+        `식이섬유는 하루 평균 <b>${fmt(avgFb)}g</b> (목표 ${targets.fb}g). `
+        + (avgFb >= targets.fb
+            ? "충분해요. 포만감 유지에 큰 도움이 됩니다."
+            : "부족한 편이에요. 채소·통곡물·콩류를 한 끼에 한 가지씩만 더해도 금방 채워집니다.")
+        + " 섬유질이 안 적힌 음식은 평균에서 빠져 있어요."));
+    }
+
     const note = document.createElement("p");
     note.className = "analysis-note";
     note.textContent = `기록한 날만 평균에 넣어요 (최근 7일 중 ${logged7.length}일). 안 적은 날은 0kcal로 세지 않습니다.`;
     wrap.appendChild(note);
+  }
+
+  /* ---------- 주간 요약 카드 이미지 ---------- */
+  /* SVG 대신 캔버스에 직접 그려요. 기기마다 폰트가 달라도 깨지지 않고, 바로 PNG로 나옵니다. */
+  function drawWeeklyCard(d){
+    const W = 1080, H = 1420, P = 80;
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const g = canvas.getContext("2d");
+    const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+
+    const C = { bg:"#13141a", surface:"#1d2029", border:"#333847", accent:"#8b5cf6",
+                good:"#34d399", warn:"#f5b942", over:"#f87171", text:"#f2f2f5", muted:"#9096a6" };
+
+    g.fillStyle = C.bg; g.fillRect(0,0,W,H);
+
+    function rrect(x,y,w,h,r){
+      g.beginPath();
+      g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+      g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath();
+    }
+    function txt(s, x, y, size, color, weight, align){
+      g.font = `${weight||400} ${size}px ${FONT}`;
+      g.fillStyle = color; g.textAlign = align || "left"; g.textBaseline = "alphabetic";
+      g.fillText(s, x, y);
+    }
+
+    // 헤더
+    const range = d.last7.length
+      ? `${d.last7[0].date.slice(5).replace("-",".")} ~ ${d.last7[d.last7.length-1].date.slice(5).replace("-",".")}`
+      : "";
+    txt("최근 7일 식단 요약", P, 150, 58, C.text, 800);
+    txt(range + `  ·  기록 ${d.logged7.length}일`, P, 200, 30, C.muted, 400);
+
+    // 큰 칼로리
+    rrect(P, 240, W-P*2, 240, 28); g.fillStyle = C.surface; g.fill();
+    txt("하루 평균 칼로리", P+44, 310, 28, C.muted, 600);
+    g.font = `800 108px ${FONT}`; g.fillStyle = C.text; g.textAlign = "left";
+    const kcalStr = String(Math.round(d.avgKcal));
+    g.fillText(kcalStr, P+44, 415);
+    const kw = g.measureText(kcalStr).width;
+    txt("kcal", P+56+kw, 415, 34, C.muted, 600);
+    const diff = d.avgKcal - targets.kcal;
+    txt(`목표 ${targets.kcal}kcal  ·  ${diff >= 0 ? "+" : ""}${Math.round(diff)}kcal`,
+        W-P-44, 415, 30, diff > targets.kcal*0.05 ? C.over : C.good, 600, "right");
+
+    // 4칸 통계
+    const boxes = [
+      { l:"체중당 단백질", v:d.gPerKg.toFixed(1), u:"g/kg", s:`평균 ${Math.round(d.avgP)}g`,
+        c: d.gPerKg >= 1.6 ? C.good : (d.gPerKg >= 1.2 ? C.warn : C.over) },
+      { l:"목표 안에 든 날", v:String(d.onTarget), u:`/${d.logged7.length}일`, s:`단백질 달성 ${d.proteinHit}일`, c:C.text },
+      { l:"하루 평균 식이섬유", v: d.avgFiber ? String(Math.round(d.avgFiber)) : "-", u:"g",
+        s:`목표 ${targets.fb}g`, c: d.avgFiber >= targets.fb ? C.good : C.warn },
+      { l:"하루 평균 물", v: d.avgWater ? String(Math.round(d.avgWater)) : "-", u: d.avgWater ? "ml" : "",
+        s:`${d.waterDays.length}일 기록`, c:C.text },
+    ];
+    const bw = (W-P*2-24)/2, bh = 200;
+    boxes.forEach((b,i)=>{
+      const x = P + (i%2)*(bw+24), y = 520 + Math.floor(i/2)*(bh+24);
+      rrect(x,y,bw,bh,24); g.fillStyle = C.surface; g.fill();
+      txt(b.l, x+34, y+56, 26, C.muted, 600);
+      g.font = `800 62px ${FONT}`; g.fillStyle = b.c; g.textAlign = "left";
+      g.fillText(b.v, x+34, y+126);
+      const vw = g.measureText(b.v).width;
+      txt(b.u, x+42+vw, y+126, 26, C.muted, 600);
+      txt(b.s, x+34, y+168, 24, C.muted, 400);
+    });
+
+    // 일별 막대
+    const gy = 1015, gh = 215;
+    txt("날짜별 칼로리", P, gy-20, 28, C.muted, 600);
+    rrect(P, gy, W-P*2, gh+66, 24); g.fillStyle = C.surface; g.fill();
+    const vals = d.last7.map(x=> x.totals ? x.totals.kcal : null);
+    // 목표선이 카드 맨 위에 붙지 않도록 여유를 둬요
+    const maxV = Math.max(targets.kcal*1.18, ...vals.filter(v=> v != null).map(v=> v*1.06)) || 1;
+    const colW = (W-P*2-80) / Math.max(d.last7.length,1);
+    const gyTop = gy+30, gyBot = gy+gh;
+
+    // 목표선
+    const ty = gyBot - (targets.kcal/maxV)*(gyBot-gyTop);
+    g.strokeStyle = C.border; g.lineWidth = 3; g.setLineDash([10,10]);
+    g.beginPath(); g.moveTo(P+40, ty); g.lineTo(W-P-46, ty); g.stroke(); g.setLineDash([]);
+    txt(`목표 ${targets.kcal}`, W-P-46, ty-12, 20, C.muted, 600, "right");
+
+    const DOWK = ["일","월","화","수","목","금","토"];
+    d.last7.forEach((day,i)=>{
+      const v = vals[i];
+      const cx = P+40 + colW*i + colW/2;
+      const barW = Math.min(colW*0.52, 60);
+      if (v == null){
+        g.fillStyle = C.border;
+        rrect(cx-barW/2, gyBot-6, barW, 6, 3); g.fill();
+        txt("-", cx, gyBot-20, 20, C.border, 600, "center");
+      } else {
+        const h = Math.max(10, (v/maxV)*(gyBot-gyTop));
+        const over = v > targets.kcal*1.1;
+        g.fillStyle = over ? C.over : C.accent;
+        rrect(cx-barW/2, gyBot-h, barW, h, 10); g.fill();
+        // 막대가 높으면 숫자를 막대 안에 넣어 위로 삐져나가지 않게
+        if (h > (gyBot-gyTop)*0.78) txt(String(Math.round(v)), cx, gyBot-h+30, 20, "#ffffff", 700, "center");
+        else txt(String(Math.round(v)), cx, gyBot-h-14, 20, C.muted, 600, "center");
+      }
+      txt(DOWK[day.dow], cx, gyBot+40, 24, C.muted, 600, "center");
+    });
+
+    // 푸터
+    txt("오늘의 식단 계산기", P, H-62, 28, C.muted, 700);
+    g.fillStyle = C.accent;
+    g.beginPath(); g.arc(W-P-22, H-72, 20, 0, Math.PI*2); g.fill();
+    g.fillStyle = C.bg;
+    g.beginPath(); g.arc(W-P-22, H-72, 12, 0, Math.PI*2); g.fill();
+
+    return canvas;
   }
 
   function mkInsight(cls, html){
@@ -3145,6 +3450,24 @@
       + (Math.abs(paceNow) < 0.05
         ? "지금은 사실상 유지 중이에요."
         : `현재 속도는 주 ${fmt(Math.abs(paceNow))}kg ${paceNow < 0 ? "감량" : "증가"}입니다.`)));
+
+    const goalKg = Number(bodyStats.goalWeight) || 0;
+    const e = etaText(perWeek, wEnd, goalKg);
+    if (e) wrap.appendChild(mkInsight(e.cls, e.html));
+    const pw = paceWarningHtml(perWeek, wEnd);
+    if (pw) wrap.appendChild(mkInsight(pw.cls, pw.html));
+
+    /* 목표 칼로리를 그대로 지켰을 때의 예상 속도 */
+    const plannedPerWeek = (targets.kcal - actualTdee) / 7700 * 7;
+    if (Math.abs(plannedPerWeek) >= 0.05){
+      const pe = etaText(plannedPerWeek, wEnd, goalKg);
+      wrap.appendChild(mkInsight("",
+        `지금 설정한 목표 <b>${targets.kcal}kcal</b>를 매일 지키면 이론상 주 `
+        + `<b>${fmt(Math.abs(plannedPerWeek))}kg ${plannedPerWeek < 0 ? "감량" : "증가"}</b> 속도예요.`
+        + (pe && pe.cls === "good" ? " " + pe.html.replace("이 속도", "그 속도") : "")));
+      const pw2 = paceWarningHtml(plannedPerWeek, wEnd);
+      if (pw2 && !pw) wrap.appendChild(mkInsight(pw2.cls, "목표 칼로리 기준: " + pw2.html));
+    }
 
     const note = document.createElement("p");
     note.className = "analysis-note";
@@ -3336,6 +3659,19 @@
       trend.textContent = tt;
       wrap.appendChild(trend);
     }
+
+    const rp = recentPace(points);
+    if (rp){
+      const goalKg = Number(bodyStats.goalWeight) || 0;
+      const e = etaText(rp.perWeek, rp.curKg, goalKg);
+      if (e) wrap.appendChild(mkInsight(e.cls, e.html));
+      const w = paceWarningHtml(rp.perWeek, rp.curKg);
+      if (w) wrap.appendChild(mkInsight(w.cls, w.html));
+      const note = document.createElement("p");
+      note.className = "analysis-note";
+      note.textContent = `예상일은 최근 ${rp.days}일간의 7일 이동평균 추세를 그대로 이어간다고 가정한 값이에요. 감량은 보통 뒤로 갈수록 느려지니 참고용으로만 보세요.`;
+      wrap.appendChild(note);
+    }
   }
 
   function movingAvg(points, win){
@@ -3391,6 +3727,82 @@
         <span style="color:#34d399;">━</span> 7일 이동평균 (실제 추세)
       </p>`;
     return div;
+  }
+
+  /* ---------- 감량 속도 판정 (공통) ---------- */
+  /* 주당 체중 변화율(%)로 판단해요. 체중이 클수록 같은 kg도 덜 부담이라 % 기준이 더 공정합니다. */
+  function paceVerdict(perWeek, curKg){
+    if (!curKg || !isFinite(perWeek)) return null;
+    const pct = Math.abs(perWeek) / curKg * 100;
+    if (Math.abs(perWeek) < 0.05) return { level:"flat", pct };
+    if (perWeek < 0){
+      if (pct > 1.2) return { level:"tooFast", pct };
+      if (pct > 1.0) return { level:"fast", pct };
+      return { level:"ok", pct };
+    }
+    return { level:"gain", pct };
+  }
+
+  function paceWarningHtml(perWeek, curKg){
+    const v = paceVerdict(perWeek, curKg);
+    if (!v) return null;
+    if (v.level === "tooFast"){
+      return { cls:"warn", html:
+        `⚠️ 지금 속도는 <b>주 ${fmt(Math.abs(perWeek))}kg (체중의 ${v.pct.toFixed(1)}%)</b>이에요. `
+        + `보통 주 0.5~1%를 넘어가면 근육이 같이 빠지고, 정체기나 폭식으로 이어지기 쉽습니다. `
+        + `목표 칼로리를 하루 200~300kcal 올리고 단백질을 채우는 쪽을 권해요.` };
+    }
+    if (v.level === "fast"){
+      return { cls:"warn", html:
+        `지금 속도는 <b>주 ${fmt(Math.abs(perWeek))}kg (체중의 ${v.pct.toFixed(1)}%)</b>로 조금 빠른 편이에요. `
+        + `단백질과 근력 운동이 받쳐주지 않으면 근육이 같이 빠질 수 있습니다.` };
+    }
+    return null;
+  }
+
+  /* ---------- 목표 체중 도달 예상일 ---------- */
+  function etaText(perWeek, curKg, goalKg){
+    if (!goalKg || !curKg) return null;
+    const remain = curKg - goalKg;
+    if (Math.abs(remain) < 0.3) return { cls:"good", html:`🎉 목표 체중 <b>${goalKg}kg</b>에 사실상 도달했어요.` };
+
+    const needLoss = remain > 0;
+    const moving = (needLoss && perWeek < -0.05) || (!needLoss && perWeek > 0.05);
+
+    if (!moving){
+      return { cls:"", html:
+        `목표 ${goalKg}kg까지 <b>${fmt(Math.abs(remain))}kg ${needLoss ? "남았어요" : "더 찌워야 해요"}</b>. `
+        + `다만 지금 추세로는 목표 쪽으로 움직이고 있지 않아서 예상일을 계산할 수 없어요.` };
+    }
+
+    const weeks = Math.abs(remain / perWeek);
+    if (weeks > 130) return { cls:"", html:`목표까지 ${fmt(Math.abs(remain))}kg 남았는데 지금 속도로는 2년 넘게 걸려요. 속도를 조금 올려도 괜찮습니다.` };
+
+    const eta = new Date();
+    eta.setDate(eta.getDate() + Math.round(weeks * 7));
+    const label = eta.toLocaleDateString("ko-KR", { year:"numeric", month:"long", day:"numeric" });
+    const wLabel = weeks < 1 ? "일주일 안" : `약 ${Math.round(weeks)}주 뒤`;
+    return { cls:"good", html:
+      `이 속도(주 ${fmt(Math.abs(perWeek))}kg)를 유지하면 목표 <b>${goalKg}kg</b>까지 `
+      + `${fmt(Math.abs(remain))}kg 남았고, <b>${wLabel} — ${label}</b>쯤 도달해요.` };
+  }
+
+  /* 체중 카드용: 7일 이동평균 기준 최근 2주 속도 */
+  function recentPace(points){
+    if (points.length < 5) return null;
+    const avg = movingAvg(points, 7);
+    const last = avg[avg.length-1];
+    const cut = new Date(last.date + "T00:00:00");
+    cut.setDate(cut.getDate() - 14);
+    let prev = null;
+    for (let i=avg.length-1;i>=0;i--){
+      const d = new Date(avg[i].date + "T00:00:00");
+      if (d <= cut){ prev = avg[i]; break; }
+    }
+    if (!prev) prev = avg[0];
+    const days = Math.round((new Date(last.date+"T00:00:00") - new Date(prev.date+"T00:00:00")) / 86400000);
+    if (days < 7) return null;
+    return { perWeek: (last.kg - prev.kg) / days * 7, curKg: last.kg, days };
   }
 
   function trendText(points){
@@ -3492,7 +3904,7 @@
     status.textContent = "CSV 만드는 중...";
     try{
       const data = await collectAllData();
-      const rows = [["날짜","요일","끼니","음식","칼로리","단백질(g)","탄수화물(g)","지방(g)","당류(g)","나트륨(mg)","체중(kg)","물(ml)"]];
+      const rows = [["날짜","요일","끼니","음식","칼로리","단백질(g)","탄수화물(g)","지방(g)","식이섬유(g)","당류(g)","나트륨(mg)","체중(kg)","물(ml)"]];
       const DOW = ["일","월","화","수","목","금","토"];
       const dates = Object.keys(data.entries).sort();
       dates.forEach(date=>{
@@ -3502,7 +3914,7 @@
         (data.entries[date] || []).forEach((e, i)=>{
           rows.push([
             date, dow, e.meal || "", e.name,
-            e.kcal || 0, e.p || 0, e.c || 0, e.f || 0, e.s || 0, e.n || 0,
+            e.kcal || 0, e.p || 0, e.c || 0, e.f || 0, e.fb == null ? "" : e.fb, e.s || 0, e.n || 0,
             i === 0 ? kg : "", i === 0 ? ml : ""
           ]);
         });
@@ -3594,7 +4006,7 @@
     if (!g){ el.textContent = "실제 먹은 양(g)을 입력하면 환산 결과가 여기에 나와요."; return; }
     const k = customFactor();
     const v = (id)=> Math.round(((Number($(id).value)||0) * k) * 10) / 10;
-    el.innerHTML = `<b style="color:var(--text);">${g}g 기준 → ${v("cKcal")}kcal</b> · P ${v("cProtein")}g · C ${v("cCarb")}g · F ${v("cFat")}g · 당 ${v("cSugar")}g · Na ${v("cSodium")}mg`;
+    el.innerHTML = `<b style="color:var(--text);">${g}g 기준 → ${v("cKcal")}kcal</b> · P ${v("cProtein")}g · C ${v("cCarb")}g · F ${v("cFat")}g · 섬유 ${v("cFiber")}g · 당 ${v("cSugar")}g · Na ${v("cSodium")}mg`;
   }
 
   function showPane(which){
@@ -3674,6 +4086,7 @@
 
     $("copyPrevDayBtn").addEventListener("click", copyPrevDay);
     $("downloadBtn").addEventListener("click", downloadBackup);
+    $("snapshotRestoreBtn").addEventListener("click", restoreSnapshot);
     $("importFile").addEventListener("change", (ev)=>{
       const f = ev.target.files && ev.target.files[0];
       if (f) importFromFile(f);
@@ -3755,26 +4168,28 @@
       const f = rd((Number($("cFat").value)||0) * k);
       const s = rd((Number($("cSugar").value)||0) * k);
       const n = rd((Number($("cSodium").value)||0) * k);
+      const fb = rd((Number($("cFiber").value)||0) * k);
 
       if (editingId){
         const idx = entries.findIndex(e=>e.id===editingId);
         if (idx !== -1){
-          entries[idx] = { ...entries[idx], name, kcal, p, c, f, s, n, meal: currentMeal };
+          entries[idx] = { ...entries[idx], name, kcal, p, c, f, s, n, fb, meal: currentMeal };
         }
         cancelEdit();
         renderToday();
         saveEntries();
         refreshWeekAvg();
       } else {
-        addEntryAndSave({ name, kcal, p, c, f, s, n });
+        addEntryAndSave({ name, kcal, p, c, f, s, n, fb });
         if ($("saveAsPreset").checked){
           // 100g당 모드로 넣었으면 100g 단위로 등록 → 다음엔 그램만 바꿔서 쓸 수 있어요
           const unit = per100 ? "100g" : "1인분";
           const pn = per100 ? rawName : name;
           const pv = per100
             ? { kcal:Number($("cKcal").value)||0, p:Number($("cProtein").value)||0, c:Number($("cCarb").value)||0,
-                f:Number($("cFat").value)||0, s:Number($("cSugar").value)||0, n:Number($("cSodium").value)||0 }
-            : { kcal, p, c, f, s, n };
+                f:Number($("cFat").value)||0, s:Number($("cSugar").value)||0, n:Number($("cSodium").value)||0,
+                fb:Number($("cFiber").value)||0 }
+            : { kcal, p, c, f, s, n, fb };
           const exists = userPresets.some(x=> x.name===pn && x.unit===unit);
           if (!exists){
             userPresets.push({ group:"내가 등록한 음식", name:pn, unit, ...pv });
@@ -3788,7 +4203,7 @@
           $("saveAsPreset").checked = false;
         }
         $("cName").value=""; $("cKcal").value=0; $("cProtein").value=0; $("cCarb").value=0;
-        $("cFat").value=0; $("cSugar").value=0; $("cSodium").value=0;
+        $("cFat").value=0; $("cSugar").value=0; $("cSodium").value=0; $("cFiber").value=0;
         if ($("cGram")) $("cGram").value = "";
         renderCustomPreview();
       }
@@ -3808,7 +4223,7 @@
         renderCustomPreview();
       });
     });
-    ["cGram","cKcal","cProtein","cCarb","cFat","cSugar","cSodium"].forEach(id=>{
+    ["cGram","cKcal","cProtein","cCarb","cFat","cSugar","cSodium","cFiber"].forEach(id=>{
       const el = $(id);
       if (el) el.addEventListener("input", renderCustomPreview);
     });
@@ -3827,6 +4242,7 @@
         f: Number($("tFat").value)||DEFAULT_TARGETS.f,
         s: Number($("tSugar").value)||DEFAULT_TARGETS.s,
         n: Number($("tSodium").value)||DEFAULT_TARGETS.n,
+        fb: Number($("tFiber").value)||DEFAULT_TARGETS.fb,
       };
       saveTargets();
       renderToday();
@@ -4050,7 +4466,16 @@
   loadSettings()
     .then(loadToday)
     .then(()=>{ renderBudgetBar(); })
-    .then(handleShortcut);
+    .then(handleShortcut)
+    .then(()=>{
+      requestPersist();
+      setTimeout(()=> saveSnapshot(true), 3000);
+    });
+
+  /* 앱을 벗어날 때 조용히 스냅샷 (5분에 한 번까지만) */
+  document.addEventListener("visibilitychange", ()=>{
+    if (document.visibilityState === "hidden") saveSnapshot(false);
+  });
 })();
 
 /* 서비스워커 등록 (https 주소에서만 동작, 파일로 열면 조용히 건너뜀) */
