@@ -1,7 +1,7 @@
 /* 식단 계산기 서비스워커
    앱 파일을 고치고 다시 올릴 때는 아래 CACHE 뒤 숫자를 v2, v3... 으로 올려주세요.
    그래야 폰이 새 버전을 받아옵니다. */
-const CACHE = "diet-v14";
+const CACHE = "diet-v15";
 const ASSETS = [
   "./",
   "./index.html",

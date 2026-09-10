@@ -201,22 +201,21 @@
   .meal-tag{ background:var(--surface-2); color:var(--muted); padding:6px 10px; border-radius:99px; font-size:12px; font-weight:600; }
   .meal-tag.active{ background:var(--accent); color:#fff; }
 
-  /* 칩이 많으면 아래로 끝없이 쌓여서 화면을 잡아먹어요. 한 줄로 두고 옆으로 넘깁니다. */
-  .chip-row{
-    display:flex; gap:6px; margin-bottom:12px;
-    overflow-x:auto; padding-bottom:6px;
-    -webkit-overflow-scrolling:touch; scrollbar-width:none;
-  }
-  .chip-row::-webkit-scrollbar{ display:none; }
-  .chip-row.wrap{ flex-wrap:wrap; overflow-x:visible; padding-bottom:0; }
+  /* 칩은 줄바꿈하되 기본 몇 개까지만. 가로 스크롤은 뭐가 숨어 있는지 안 보여서 안 씁니다. */
+  .chip-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
   .chip{
     display:inline-flex; align-items:baseline; gap:6px;
-    flex:none; max-width:190px; background:var(--surface-2); color:var(--text);
+    flex:none; max-width:100%; background:var(--surface-2); color:var(--text);
     padding:7px 12px; border-radius:99px; font-size:12.5px; font-weight:600;
     border:1px solid var(--border); white-space:nowrap;
   }
   .chip .cl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .chip .ck{ flex:none; font-size:11px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .chip-more{
+    flex:none; background:transparent; color:var(--accent);
+    padding:7px 12px; border-radius:99px; font-size:12.5px; font-weight:700;
+    border:1px dashed var(--border); font-family:inherit; cursor:pointer;
+  }
   .chip.star{ color:var(--warn); border-color:var(--warn); }
   .chip.combo{ color:var(--accent); border-color:var(--accent); }
   .chip-wrap{
@@ -2100,6 +2099,9 @@
     renderRecentRow();
   }
 
+  const RECENT_COLLAPSED = 6;
+  let recentExpanded = false;
+
   function renderRecentRow(){
     const row = $("recentRow");
     if (!row) return;
@@ -2111,19 +2113,31 @@
     }
     if (block) block.style.display = "";
     row.innerHTML = "";
-    recentItems.slice(0,12).forEach((r,i)=>{
+
+    const all = recentItems.slice(0, 20);
+    const shown = recentExpanded ? all : all.slice(0, RECENT_COLLAPSED);
+
+    shown.forEach(r=>{
       const btn = document.createElement("button");
       btn.className = "chip";
       btn.innerHTML = `<span class="cl">${esc(r.name)}</span><span class="ck">${fmt(r.kcal)}</span>`;
       btn.addEventListener("click", ()=>{
         const preset = allPresets().find(x=> x.name===r.name && x.unit===r.unit);
         if (preset){ quickAdd(preset, 1); return; }
-        const entry = mergeOrAdd(r.name, 1, r);
+        mergeOrAdd(r.name, 1, r);
         pushRecent({ ...r, meal: currentMeal });
         renderToday(); saveEntries(); refreshWeekAvg();
       });
       row.appendChild(btn);
     });
+
+    if (all.length > RECENT_COLLAPSED){
+      const more = document.createElement("button");
+      more.className = "chip-more";
+      more.textContent = recentExpanded ? "접기" : `+${all.length - RECENT_COLLAPSED}개 더`;
+      more.addEventListener("click", ()=>{ recentExpanded = !recentExpanded; renderRecentRow(); });
+      row.appendChild(more);
+    }
   }
 
   async function copyPrevDay(){
