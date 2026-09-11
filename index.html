@@ -2309,8 +2309,9 @@
     renderAiSettings();
   }
 
-  /* 사진을 그대로 보내면 토큰이 많이 드니 긴 변을 1100px로 줄여요 */
-  function shrinkImage(file, maxPx){
+  /* 사진을 그대로 보내면 토큰이 많이 드니 긴 변을 줄여요.
+     음식 사진은 1100px로 충분하지만, 영양성분표는 깨알 글씨라 1568px + 높은 화질로 보냅니다. */
+  function shrinkImage(file, maxPx, quality){
     return new Promise((resolve, reject)=>{
       const reader = new FileReader();
       reader.onerror = ()=> reject(new Error("사진을 읽지 못했어요."));
@@ -2324,7 +2325,7 @@
           const cv = document.createElement("canvas");
           cv.width = w; cv.height = h;
           cv.getContext("2d").drawImage(img, 0, 0, w, h);
-          const url = cv.toDataURL("image/jpeg", 0.82);
+          const url = cv.toDataURL("image/jpeg", quality || 0.82);
           resolve(url.split(",")[1]);
         };
         img.src = reader.result;
@@ -2345,6 +2346,7 @@
       body: JSON.stringify({
         model: aiModel,
         max_tokens: 700,
+        temperature: 0,
         messages: [{
           role: "user",
           content: [
@@ -2411,7 +2413,15 @@
 규칙:
 - 사진 속 전체 양에 대한 값으로 계산하세요. 100g당이 아닙니다.
 - 그릇 크기, 젓가락, 숟가락 등을 단서로 양을 가늠하세요.
-- 소스나 기름은 눈에 보이지 않아도 조리 방식으로 미루어 반영하세요.
+- 한국 식기 기준을 척도로 삼으세요:
+  · 밥공기 가득 = 익힌 밥 210g (공기 위로 봉긋하면 250g, 반만 담겼으면 100g)
+  · 국그릇 한 그릇 = 국물 포함 300ml, 뚝배기는 400ml
+  · 숟가락 하나 = 약 10ml, 젓가락 길이 = 약 22cm
+  · 일반 밥그릇 지름 = 약 11cm, 국그릇 지름 = 약 15cm, 앞접시 지름 = 약 18cm
+  · 삼겹살 1인분 = 생고기 180g, 구우면 약 130g
+  · 라면 1봉 = 면 120g, 김밥 한 줄 = 230g, 치킨 한 조각 = 60~90g
+- 위 기준과 사진 속 그릇을 비교해 실제 담긴 비율(가득/반/조금)을 먼저 정하고, 거기서 g수를 계산하세요.
+- 소스나 기름은 눈에 보이지 않아도 조리 방식으로 미루어 반영하세요. 볶음·구이는 기름 5~10g, 튀김은 15g 이상을 더하세요.
 - 음식이 보이지 않으면 found를 false로 하고 나머지는 null.`;
 
   function setNum(id, v){
@@ -2433,7 +2443,9 @@
     showAiNote("사진을 줄이는 중...");
     let base64;
     try{
-      base64 = await shrinkImage(file, 1100);
+      base64 = (kind === "label")
+        ? await shrinkImage(file, 1568, 0.92)
+        : await shrinkImage(file, 1100, 0.82);
     }catch(err){
       showAiNote(esc(err.message));
       return;
