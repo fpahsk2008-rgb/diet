@@ -271,6 +271,9 @@
   .footer-row{ display:flex; gap:8px; margin-top:4px; }
   .footer-row button{ flex:1; background:var(--surface-2); color:var(--muted); padding:9px; border-radius:9px; font-size:12.5px; font-weight:600; }
   .footer-row button:hover{ color:var(--text); }
+  .app-ver{ margin:14px 0 4px; text-align:center; font-size:11.5px; color:var(--muted); opacity:.75; letter-spacing:.2px; }
+  .app-ver b{ color:var(--text); font-weight:600; }
+  .app-ver.ver-warn{ color:#e0a33a; opacity:1; }
 
   .collapsible{ display:none; margin-top:12px; }
   .collapsible.open{ display:block; }
@@ -888,6 +891,8 @@
     <div class="footer-row">
       <button id="resetDayBtn">오늘 기록 초기화</button>
     </div>
+
+    <p class="app-ver" id="appVerLine">…</p>
   </div>
 
   <!-- ============ HISTORY VIEW ============ -->
@@ -2241,6 +2246,36 @@
      anthropic-dangerous-direct-browser-access 헤더로 CORS가 열려요.
      키는 사용자 기기에만 저장되니, 이 앱 주소를 남과 공유할 거라면 대신 프록시를 두세요. */
   const AIKEY_KEY = "cu-tracker:aiKey";
+  /* ---------- 앱 버전 표시 ----------
+     파일을 고쳐서 다시 올릴 때는 아래 APP_VERSION 과 sw.js 의 CACHE 숫자를 똑같이 올려주세요.
+     설정 화면 맨 아래에서 두 값이 맞는지 눈으로 확인할 수 있습니다. */
+  const APP_VERSION = "v16";
+
+  async function renderAppVersion(){
+    const el = $("appVerLine");
+    if (!el) return;
+
+    let cacheVer = null;
+    try{
+      const keys = await caches.keys();
+      const hit = keys.filter(k=> k.startsWith("diet-v")).sort().pop();
+      if (hit) cacheVer = hit.replace("diet-", "");
+    }catch(err){}
+
+    if (!cacheVer){
+      el.className = "app-ver";
+      el.innerHTML = `식단 계산기 <b>${APP_VERSION}</b> · 캐시 없음 (브라우저에서 바로 열린 상태)`;
+      return;
+    }
+    if (cacheVer === APP_VERSION){
+      el.className = "app-ver";
+      el.innerHTML = `식단 계산기 <b>${APP_VERSION}</b> · 캐시 ${cacheVer} ✓ 최신`;
+    } else {
+      el.className = "app-ver ver-warn";
+      el.innerHTML = `⚠️ 화면은 <b>${APP_VERSION}</b> 인데 캐시는 ${cacheVer} 예요. sw.js 도 같이 올렸는지 확인해주세요.`;
+    }
+  }
+
   const AIMODEL_KEY = "cu-tracker:aiModel";
   const AIUSAGE_KEY = "cu-tracker:aiUsage";
   const AI_MODELS = {
@@ -4583,7 +4618,7 @@
   const PANEL_LAYOUT = {
     panelToday:    [".date-nav", "#pastBanner", ".fold-all-row", "fold:summary", "fold:weight", "fold:water", "fold:breakdown", "fold:log", "fold:workout"],
     panelAdd:      ["#budgetBar", "fold:combo", "fold:add"],
-    panelSettings: ["fold:targets", "fold:ai", "fold:fiberFill", "fold:mealsplit", "fold:waterCfg", "fold:backup", ".footer-row"],
+    panelSettings: ["fold:targets", "fold:ai", "fold:fiberFill", "fold:mealsplit", "fold:waterCfg", "fold:backup", ".footer-row", "#appVerLine"],
   };
   const FOLD_VIEW = {};
 
@@ -5054,6 +5089,7 @@
   initEvents();
   initFolds();
   checkStorageMode();
+  renderAppVersion();
   loadFoldState();
   loadSettings()
     .then(loadToday)
